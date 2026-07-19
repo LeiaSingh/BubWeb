@@ -7,7 +7,7 @@
 }
 
 body {
-    background-color: #eb9780;
+    background-color: #fbb9a7;
     background-image: radial-gradient(#d1c7bd 1px, transparent 0);
     background-size: 24px 24px;
     color: #2b2621;
@@ -47,7 +47,7 @@ body {
 }
 
 .animate-fade-in {
-    animation: fadeIn 0.8s ease forwards;
+    animation: fadeIn 0.9s ease forwards;
 }
 
 /* Delayed fade in so things pop up in a smooth sequence */
