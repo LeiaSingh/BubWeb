@@ -7,9 +7,11 @@
 }
 
 body {
-    background-color: #f7fafc;
-    color: #2d3748;
-    padding: 60px 20px;
+    background-color: #eb9780;
+    background-image: radial-gradient(#d1c7bd 1px, transparent 0);
+    background-size: 24px 24px;
+    color: #2b2621;
+    padding: 40px 20px;
 }
 
 .container {
@@ -62,15 +64,28 @@ body {
 /* Hero Section */
 .hero {
     text-align: center;
-    margin-bottom: 50px;
+    margin-bottom: 40px;
+    display: flex;
+    justify-content: center;
 }
 
-.hero h1 {
+.header-art-wrapper {
+    width: 100%;
+    max-width: 700px;
+}
+
+.header-art {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* .hero h1 {
     font-size: 42px;
     font-weight: 800;
     margin-bottom: 12px;
     letter-spacing: -0.5px;
-}
+} */
 
 .subtitle {
     color: #718096;
