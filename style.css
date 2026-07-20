@@ -12,6 +12,13 @@ body {
     background-size: 24px 24px;
     color: #2b2621;
     padding: 40px 20px;
+    /* Make typography render crisp on high-DPI/Retina displays */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+    scroll-behavior: smooth;
 }
 
 .container {
@@ -134,6 +141,28 @@ body {
     font-size: 14px;
 }
 
+/* Add specific tag accent colors in style.css */
+.next-up .bubble-tag {
+    color: #2b6cb0;
+    background: #ebf8ff;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+.event .bubble-tag {
+    color: #c05621;
+    background: #fffaf0;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+.memory .bubble-tag {
+    color: #2f855a;
+    background: #f0fff4;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
 /* Page Navigation Buttons */
 .page-nav {
     display: flex;
@@ -152,8 +181,13 @@ body {
     font-weight: 600;
     color: #718096;
     cursor: pointer;
-    transition: color 0.2s ease;
+    transition: color 0.2s ease, transform 0.2s ease; /* Combined transition */
     position: relative;
+}
+
+.nav-btn:hover {
+    color: #3182ce;
+    transform: translateY(-1px);
 }
 
 .nav-btn.active {
