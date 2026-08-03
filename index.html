@@ -43,12 +43,54 @@
 
         <main class="main-content animate-fade-in-delayed">
             <div id="list-page" class="page-content">
-                <p style="color: #a0aec0; text-align: center; padding: 40px 0;">planetarium, mini-golf, maropeng</p>
+                <div class="activity-manager">
+                    <form id="activity-form" class="bubble activity-form">
+                        <h3>Add a planned activity</h3>
+                        <label class="field">
+                            <span>Activity name</span>
+                            <input type="text" id="activity-name" placeholder="e.g. Mini golf" required>
+                        </label>
+                        <label class="field">
+                            <span>Date</span>
+                            <input type="date" id="activity-date" required>
+                        </label>
+                        <label class="field">
+                            <span>Time</span>
+                            <input type="time" id="activity-time" required>
+                        </label>
+                        <button type="submit" class="save-btn">Save activity</button>
+                    </form>
+
+                    <form id="completion-form" class="bubble completion-form hidden">
+                        <h3 id="completion-title">Mission Complete</h3>
+                        <p class="helper-text">Slide to set each score and save it.</p>
+                        <label class="field">
+                            <span>Nik's score</span>
+                            <div class="slider-row">
+                                <input type="range" id="nik-score" min="0" max="10" step="0.1" value="5">
+                                <span class="slider-value" id="nik-score-value">5.0</span>
+                            </div>
+                        </label>
+                        <label class="field">
+                            <span>Lei's score</span>
+                            <div class="slider-row">
+                                <input type="range" id="lei-score" min="0" max="10" step="0.1" value="5">
+                                <span class="slider-value" id="lei-score-value">5.0</span>
+                            </div>
+                        </label>
+                        <div class="form-actions">
+                            <button type="button" id="save-completion" class="save-btn">Save score</button>
+                            <button type="button" id="cancel-completion" class="ghost-btn">Cancel</button>
+                        </div>
+                    </form>
+
+                    <div id="activity-list" class="activity-list"></div>
+                </div>
             </div>
 
             <div id="reviews-page" class="page-content hidden">
                 <h2>The Adventure Reviews</h2>
-                <p style="color: #718096; margin-bottom:  20px;">Adventure rating based on Vibes, General Whimsy (Nikeel you gotta do this one)</p>
+                <p style="color: #718096; margin-bottom:  20px;">Adventure rating based on Vibes, General Whimsy (Nikeel you gotta do this one oki)</p>
 
                 <div id="review-calculator-preview" class="bubble" style="margin-top: 20px;">
                     <h4>Score Calculator Testin:</h4>

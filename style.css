@@ -126,6 +126,62 @@ html {
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
+.activity-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.activity-card h4 {
+    margin-bottom: 6px;
+}
+
+.activity-card p {
+    margin-bottom: 2px;
+}
+
+.activity-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.status-chip {
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+}
+
+.status-planned {
+    color: #2b6cb0;
+    background: #ebf8ff;
+}
+
+.status-partial {
+    color: #c05621;
+    background: #fffaf0;
+}
+
+.status-completed {
+    color: #2f855a;
+    background: #f0fff4;
+}
+
+.score-summary {
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4a5568;
+}
+
+.score-summary strong {
+    color: #2d3748;
+}
+
 .bubble-tag {
     font-size: 11px;
     text-transform: uppercase;
@@ -143,6 +199,136 @@ html {
 .bubble p {
     color: #718096;
     font-size: 14px;
+}
+
+.activity-manager {
+    display: grid;
+    gap: 20px;
+}
+
+.activity-form {
+    display: grid;
+    gap: 14px;
+}
+
+.activity-form h3 {
+    margin-bottom: 4px;
+}
+
+.field {
+    display: grid;
+    gap: 6px;
+    font-size: 14px;
+    color: #4a5568;
+}
+
+.field input {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 15px;
+}
+
+.save-btn {
+    border: none;
+    border-radius: 999px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-weight: 700;
+    background: #3182ce;
+    color: white;
+}
+
+.save-btn:hover {
+    background: #2b6cb0;
+}
+
+.ghost-btn {
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-weight: 700;
+    background: white;
+    color: #4a5568;
+}
+
+.delete-btn {
+    border-color: #fbd5d5;
+    color: #ff0000;
+    background: #fff5f50e;
+}
+
+.delete-btn:hover {
+    background: #a02323;
+}
+
+.completion-form {
+    display: grid;
+    gap: 12px;
+    border: 1px solid #dbeafe;
+    box-shadow: 0 10px 25px -12px rgba(49, 130, 206, 0.35);
+}
+
+.helper-text {
+    color: #718096;
+    font-size: 13px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.slider-row input[type="range"] {
+    flex: 1;
+    accent-color: #3182ce;
+    cursor: pointer;
+}
+
+.slider-value {
+    min-width: 42px;
+    font-weight: 700;
+    color: #2b6cb0;
+}
+
+.slider-row input[type="range"]::-webkit-slider-thumb {
+    cursor: pointer;
+}
+
+.activity-list {
+    display: grid;
+    gap: 14px;
+}
+
+.activity-score {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #2f855a;
+    font-weight: 600;
+}
+
+.activity-status {
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #2f855a;
+    background: #f0fff4;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+.empty-state {
+    text-align: center;
+    color: #718096;
+    padding: 20px 0;
 }
 
 /* Add specific tag accent colors in style.css */
