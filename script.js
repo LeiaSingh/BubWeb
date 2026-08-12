@@ -73,7 +73,7 @@ function renderActivities() {
     }
 
     if (!activities.length) {
-        activityList.innerHTML = '<p class="empty-state">No planned activities yet. Add one above.</p>';
+        activityList.innerHTML = '<p class="empty-state">We are two bubs in a pod...</p>';
         return;
     }
 
@@ -317,3 +317,473 @@ function runScoreTest() {
 }
 
 setupActivityManager();
+
+const PIN_STORAGE_KEY = 'bubweb-pin-board';
+const DEFAULT_PIN_BOARD = [
+    {
+        id: 'wishlist',
+        title: 'Hike!',
+        details: 'Next weekend',
+        summary: 'Next wishlist item',
+        tag: 'Next Wishlist Item',
+        type: 'next-up',
+        completed: false,
+        review: '',
+        rating: 0,
+        liked: false
+    },
+    {
+        id: 'event',
+        title: 'Spiderman',
+        details: 'Watching on FRIDAY',
+        summary: 'Upcoming event',
+        tag: 'Upcoming Event',
+        type: 'event',
+        completed: false,
+        review: '',
+        rating: 0,
+        liked: false
+    },
+    {
+        id: 'odyssey',
+        title: 'The Odyssey',
+        details: 'Ticked!',
+        summary: 'Latest memory',
+        tag: 'Latest Memory',
+        type: 'memory',
+        completed: true,
+        review: 'Ticked! Great visuals and atmosphere.',
+        rating: 4.5,
+        liked: true
+    }
+];
+
+const pinBoard = document.getElementById('pin-board');
+const addPinButton = document.getElementById('add-pin-btn');
+const pinModal = document.getElementById('pin-modal');
+const pinModalClose = document.getElementById('pin-modal-close');
+const pinModalTitle = document.getElementById('pin-modal-title');
+const pinModalDetail = document.getElementById('pin-modal-detail');
+const pinReviewInput = document.getElementById('pin-review-input');
+const pinNikRatingInput = document.getElementById('pin-nik-rating-input');
+const pinLeiRatingInput = document.getElementById('pin-lei-rating-input');
+const pinNikRatingValue = document.getElementById('pin-nik-rating-value');
+const pinLeiRatingValue = document.getElementById('pin-lei-rating-value');
+const pinAggregateScore = document.getElementById('pin-aggregate-score');
+const pinLikeButton = document.getElementById('pin-like-btn');
+const pinForm = document.getElementById('pin-form');
+const pinRemoveButton = document.getElementById('pin-remove-btn');
+const reviewList = document.getElementById('review-list');
+const addPinModal = document.getElementById('add-pin-modal');
+const addPinForm = document.getElementById('add-pin-form');
+const newPinTitleInput = document.getElementById('new-pin-title');
+const newPinDetailsInput = document.getElementById('new-pin-details');
+const addPinModalClose = document.getElementById('add-pin-modal-close');
+const addPinCancelButton = document.getElementById('add-pin-cancel');
+const confettiLayer = document.getElementById('confetti-layer');
+let pinBoardEntries = loadPins();
+let activePinId = null;
+
+function normalizePin(pin) {
+    const legacyAverage = Number(pin?.rating ?? 0);
+    const nikScore = Number.isFinite(Number(pin?.nikScore)) ? Number(pin.nikScore) : legacyAverage;
+    const leiScore = Number.isFinite(Number(pin?.leiScore)) ? Number(pin.leiScore) : legacyAverage;
+
+    return {
+        ...pin,
+        nikScore,
+        leiScore,
+        rating: Number(pin?.rating ?? ((nikScore + leiScore) / 2)).toFixed(2)
+    };
+}
+
+function loadPins() {
+    const savedPins = localStorage.getItem(PIN_STORAGE_KEY);
+
+    if (!savedPins) {
+        return [...DEFAULT_PIN_BOARD].map(normalizePin);
+    }
+
+    try {
+        const parsed = JSON.parse(savedPins);
+        const pins = Array.isArray(parsed) && parsed.length ? parsed : [...DEFAULT_PIN_BOARD];
+        return pins.map(normalizePin);
+    } catch (error) {
+        console.warn('Could not load pins', error);
+        return [...DEFAULT_PIN_BOARD].map(normalizePin);
+    }
+}
+
+function savePins() {
+    localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinBoardEntries));
+}
+
+function launchConfettiBurst() {
+    if (!confettiLayer) {
+        return;
+    }
+
+    const colors = ['#fbbf24', '#34d399', '#60a5fa', '#f472b6', '#f87171', '#a78bfa'];
+
+    for (let i = 0; i < 28; i += 1) {
+        const piece = document.createElement('span');
+        const size = 8 + Math.random() * 10;
+        const drift = (Math.random() - 0.5) * 220;
+        const rotation = (Math.random() * 360) + 90;
+
+        piece.className = 'confetti-piece';
+        piece.style.left = `${Math.random() * 100}%`;
+        piece.style.width = `${size}px`;
+        piece.style.height = `${size * 1.4}px`;
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.setProperty('--drift', `${drift}px`);
+        piece.style.setProperty('--rotation', `${rotation}deg`);
+        piece.style.animationDuration = `${1500 + Math.random() * 700}ms`;
+
+        confettiLayer.appendChild(piece);
+        window.setTimeout(() => piece.remove(), 2200);
+    }
+}
+
+function getPinAverageScore(nikScore, leiScore) {
+    const safeNik = Number(nikScore) || 0;
+    const safeLei = Number(leiScore) || 0;
+    return ((safeNik + safeLei) / 2).toFixed(2);
+}
+
+function updatePinRatingLabel() {
+    if (pinNikRatingInput && pinNikRatingValue) {
+        pinNikRatingValue.textContent = Number(pinNikRatingInput.value).toFixed(1);
+    }
+
+    if (pinLeiRatingInput && pinLeiRatingValue) {
+        pinLeiRatingValue.textContent = Number(pinLeiRatingInput.value).toFixed(1);
+    }
+
+    if (pinNikRatingInput && pinLeiRatingInput && pinAggregateScore) {
+        const average = getPinAverageScore(pinNikRatingInput.value, pinLeiRatingInput.value);
+        pinAggregateScore.textContent = `BubScore: ${average}/5.00`;
+    }
+}
+
+function renderPins() {
+    if (!pinBoard) {
+        return;
+    }
+
+    pinBoard.innerHTML = pinBoardEntries.map(pin => {
+        const reviewPill = pin.completed && pin.review
+            ? '<span class="pin-status">✓ reviewed</span>'
+            : '<span class="pin-status">fresh</span>';
+
+        return `
+            <div class="pin-card post-it ${pin.type} ${pin.completed ? 'done' : ''}" data-id="${pin.id}" tabindex="0" role="button" aria-label="Open ${escapeHtml(pin.title)} pin">
+                <div class="pin-head">📌</div>
+                <span class="bubble-tag">${escapeHtml(pin.tag)}</span>
+                <h3>${escapeHtml(pin.title)}</h3>
+                <p>${escapeHtml(pin.details)}</p>
+                <div class="pin-meta">
+                    <span>${pin.liked ? '♥ liked' : '♡ maybe'}</span>
+                    ${reviewPill}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    pinBoard.querySelectorAll('.pin-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const pinId = card.dataset.id;
+            openPinModal(pinId);
+        });
+
+        card.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                const pinId = card.dataset.id;
+                openPinModal(pinId);
+            }
+        });
+    });
+}
+
+function renderReviews() {
+    if (!reviewList) {
+        return;
+    }
+
+    const completedPins = pinBoardEntries.filter(pin => pin.completed && (pin.review || pin.rating > 0 || pin.liked));
+
+    if (!completedPins.length) {
+        reviewList.innerHTML = '<p class="empty-state">No completed adventures in the review wall yet.</p>';
+        return;
+    }
+
+    reviewList.innerHTML = completedPins.map(pin => {
+        const average = getPinAverageScore(pin.nikScore ?? pin.rating ?? 0, pin.leiScore ?? pin.rating ?? 0);
+
+        return `
+            <article class="review-card">
+                <div class="review-meta">
+                    <span>${escapeHtml(pin.tag)}</span>
+                    <span>${average}★</span>
+                </div>
+                <h4>${escapeHtml(pin.title)}</h4>
+                <p>${escapeHtml(pin.review || pin.details)}</p>
+                <p>Nik ${Number(pin.nikScore ?? 0).toFixed(1)} • Lei ${Number(pin.leiScore ?? 0).toFixed(1)} • BubScore ${average}</p>
+                <p>${pin.liked ? '♥ Liked' : '♡ Not liked yet'} </p>
+                <div class="review-actions">
+                    <button type="button" class="ghost-btn edit-review-btn" data-id="${pin.id}">Edit review</button>
+                </div>
+            </article>
+        `;
+    }).join('');
+}
+
+function closePinModal() {
+    if (pinModal) {
+        pinModal.classList.add('hidden');
+    }
+    activePinId = null;
+}
+
+function openPinModal(pinId) {
+    const pin = pinBoardEntries.find(item => item.id === pinId || item.id.toString() === pinId);
+
+    if (!pin || !pinModal || !pinModalTitle || !pinModalDetail || !pinReviewInput || !pinNikRatingInput || !pinLeiRatingInput) {
+        return;
+    }
+
+    activePinId = pin.id;
+    pinModalTitle.textContent = pin.title;
+    pinModalDetail.textContent = `${pin.details} • ${pin.summary}`;
+    pinReviewInput.value = pin.review || '';
+
+    const nikScore = pin.nikScore ?? pin.rating ?? 4.5;
+    const leiScore = pin.leiScore ?? pin.rating ?? 5.0;
+    pinNikRatingInput.value = nikScore.toString();
+    pinLeiRatingInput.value = leiScore.toString();
+    updatePinRatingLabel();
+
+    pinLikeButton.textContent = pin.liked ? '♥ Liked' : '♡ Like it';
+    pinLikeButton.dataset.liked = pin.liked ? 'true' : 'false';
+    pinModal.classList.remove('hidden');
+}
+
+function openAddPinModal() {
+    if (!addPinModal) {
+        return;
+    }
+
+    addPinModal.classList.remove('hidden');
+    if (newPinTitleInput) {
+        newPinTitleInput.focus();
+    }
+}
+
+function closeAddPinModal() {
+    if (!addPinModal) {
+        return;
+    }
+
+    addPinModal.classList.add('hidden');
+    if (addPinForm) {
+        addPinForm.reset();
+    }
+}
+
+function addNewPin(title, details) {
+    const cleanTitle = title.trim();
+    const cleanDetails = details.trim();
+
+    if (!cleanTitle || !cleanDetails) {
+        return;
+    }
+
+    const typeOptions = ['next-up', 'event', 'memory'];
+    const tagOptions = ['Next Wishlist Item', 'Upcoming Event', 'Latest Memory'];
+    const randomIndex = Math.floor(Math.random() * typeOptions.length);
+
+    pinBoardEntries.unshift({
+        id: `pin-${Date.now()}`,
+        title: cleanTitle,
+        details: cleanDetails,
+        summary: 'A new adventure pin',
+        tag: tagOptions[randomIndex],
+        type: typeOptions[randomIndex],
+        completed: false,
+        review: '',
+        rating: 0,
+        nikScore: 0,
+        leiScore: 0,
+        liked: false
+    });
+
+    savePins();
+    renderPins();
+    renderReviews();
+}
+
+if (addPinButton) {
+    addPinButton.addEventListener('click', openAddPinModal);
+}
+
+if (addPinModalClose) {
+    addPinModalClose.addEventListener('click', closeAddPinModal);
+}
+
+if (addPinCancelButton) {
+    addPinCancelButton.addEventListener('click', closeAddPinModal);
+}
+
+if (addPinModal) {
+    addPinModal.addEventListener('click', (event) => {
+        if (event.target && event.target.dataset.closeAdd === 'true') {
+            closeAddPinModal();
+        }
+    });
+}
+
+if (addPinForm) {
+    addPinForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+
+        if (!newPinTitleInput || !newPinDetailsInput) {
+            return;
+        }
+
+        addNewPin(newPinTitleInput.value, newPinDetailsInput.value);
+        closeAddPinModal();
+    });
+}
+
+if (pinModalClose) {
+    pinModalClose.addEventListener('click', closePinModal);
+}
+
+if (pinModal) {
+    pinModal.addEventListener('click', (event) => {
+        if (event.target && event.target.dataset.close === 'true') {
+            closePinModal();
+        }
+    });
+}
+
+if (reviewList) {
+    reviewList.addEventListener('click', (event) => {
+        const editButton = event.target.closest('.edit-review-btn');
+
+        if (!editButton) {
+            return;
+        }
+
+        const targetId = editButton.dataset.id;
+
+        if (targetId) {
+            openPinModal(targetId);
+        }
+    });
+}
+
+if (pinNikRatingInput && pinLeiRatingInput) {
+    pinNikRatingInput.addEventListener('input', updatePinRatingLabel);
+    pinLeiRatingInput.addEventListener('input', updatePinRatingLabel);
+}
+
+if (pinLikeButton) {
+    pinLikeButton.addEventListener('click', () => {
+        const currentLiked = pinLikeButton.dataset.liked === 'true';
+        pinLikeButton.dataset.liked = String(!currentLiked);
+        pinLikeButton.textContent = !currentLiked ? '♥ Liked' : '♡ Like it';
+    });
+}
+
+if (pinForm) {
+    pinForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+
+        if (!activePinId) {
+            return;
+        }
+
+        const pin = pinBoardEntries.find(item => item.id === activePinId || item.id.toString() === activePinId);
+
+        if (!pin) {
+            return;
+        }
+
+        pin.review = pinReviewInput.value.trim();
+        pin.nikScore = Number(pinNikRatingInput.value);
+        pin.leiScore = Number(pinLeiRatingInput.value);
+        pin.rating = Number(getPinAverageScore(pin.nikScore, pin.leiScore));
+        pin.liked = pinLikeButton.dataset.liked === 'true';
+        pin.completed = true;
+        pin.details = pin.review || pin.details;
+
+        savePins();
+        launchConfettiBurst();
+        renderPins();
+        renderReviews();
+        closePinModal();
+    });
+}
+
+if (pinRemoveButton) {
+    pinRemoveButton.addEventListener('click', () => {
+        if (!activePinId) {
+            return;
+        }
+
+        const pin = pinBoardEntries.find(item => item.id === activePinId || item.id.toString() === activePinId);
+
+        if (!pin) {
+            return;
+        }
+
+        const confirmed = window.confirm(`Remove "${pin.title}" from your pin board?`);
+
+        if (!confirmed) {
+            return;
+        }
+
+        pinBoardEntries = pinBoardEntries.filter(item => item.id !== activePinId && item.id.toString() !== activePinId);
+        savePins();
+        renderPins();
+        renderReviews();
+        closePinModal();
+    });
+}
+
+renderPins();
+renderReviews();
+
+if (navButtons) {
+    navButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            navButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+
+            if (button.textContent.toLowerCase().includes('list')) {
+                listPage.classList.remove('hidden');
+                reviewsPage.classList.add('hidden');
+            } else {
+                reviewsPage.classList.remove('hidden');
+                listPage.classList.add('hidden');
+                renderReviews();
+                runScoreTest();
+            }
+        });
+    });
+}
+
+if (pinNikRatingInput && pinLeiRatingInput) {
+    updatePinRatingLabel();
+}
+
+if (window) {
+    window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && pinModal && !pinModal.classList.contains('hidden')) {
+            closePinModal();
+        }
+    });
+}
+

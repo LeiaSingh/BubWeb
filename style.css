@@ -111,6 +111,326 @@ html {
     margin-bottom: 50px;
 }
 
+/* ========================================== */
+/* PIN BOARD & POST-IT STYLES                 */
+/* ========================================== */
+
+.pin-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 24px;
+    margin-bottom: 50px;
+    padding: 10px;
+}
+
+.pin-card {
+    position: relative;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 3px 6px 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    cursor: pointer;
+}
+
+.pin-card h3 {
+    margin-bottom: 6px;
+    font-size: 18px;
+}
+
+.pin-card p {
+    font-size: 14px;
+    color: #718096;
+}
+
+.pin-card .bubble-tag {
+    display: inline-block;
+    margin-bottom: 10px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.post-it.next-up {
+    background: #feefc3;
+    border: 1px solid #f6e05e;
+    transform: rotate(-2deg);
+}
+
+.post-it.event {
+    background: #fff5f5;
+    border: 1px solid #feb2b2;
+    transform: rotate(1.5deg);
+}
+
+.mini-calendar.memory {
+    background: #ffffff;
+    border-top: 12px solid #e53e3e;
+    transform: rotate(-1deg);
+}
+
+.post-it.next-up .bubble-tag {
+    color: #2b6cb0;
+    background: rgba(235, 248, 255, 0.7);
+}
+
+.post-it.event .bubble-tag {
+    color: #c05621;
+    background: rgba(255, 250, 240, 0.7);
+}
+
+.mini-calendar.memory .bubble-tag {
+    color: #2f855a;
+    background: rgba(240, 255, 244, 0.7);
+}
+
+.pin-card:hover {
+    transform: rotate(0deg) scale(1.04);
+    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.12);
+    z-index: 5;
+}
+
+.pin-head {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 18px;
+}
+
+.calendar-binder {
+    position: absolute;
+    top: -2px;
+    left: 18px;
+    right: 18px;
+    height: 10px;
+    border-radius: 8px 8px 0 0;
+    background: linear-gradient(180deg, #f7b7b7, #e53e3e);
+}
+
+.pin-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+}
+
+.add-pin-btn {
+    border: none;
+    background: linear-gradient(135deg, #2f855a, #68d391);
+    color: white;
+    font-weight: 800;
+    border-radius: 999px;
+    padding: 12px 20px;
+    cursor: pointer;
+    box-shadow: 0 12px 20px -12px rgba(47, 133, 90, 0.7);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.add-pin-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 22px -12px rgba(47, 133, 90, 0.9);
+}
+
+.pin-card.done {
+    border: 2px solid rgba(47, 133, 90, 0.24);
+}
+
+.pin-card.done .bubble-tag {
+    background: rgba(240, 255, 244, 0.8);
+}
+
+.pin-card .pin-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #4a5568;
+}
+
+.pin-card .pin-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255,255,255,0.35);
+    color: #2f855a;
+    border-radius: 999px;
+    padding: 4px 8px;
+}
+
+.review-list {
+    display: grid;
+    gap: 14px;
+}
+
+.review-card {
+    background: #fffaf5;
+    border: 1px solid #fbd38d;
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
+}
+
+.review-card h4 {
+    margin-bottom: 6px;
+}
+
+.review-card p {
+    margin-top: 6px;
+    color: #4a5568;
+}
+
+.review-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
+}
+
+.edit-review-btn {
+    border: 1px solid #f6ad55;
+    color: #9a5b00;
+    background: #fffaf0;
+}
+
+.review-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #718096;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.pin-modal {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    z-index: 40;
+}
+
+.pin-modal.hidden {
+    display: none;
+}
+
+.pin-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(16, 24, 40, 0.4);
+}
+
+.pin-modal-panel {
+    position: relative;
+    width: min(92vw, 520px);
+    background: #fff;
+    border-radius: 24px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.18);
+    padding: 28px 24px 20px;
+    z-index: 1;
+}
+
+.pin-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    border: none;
+    background: transparent;
+    font-size: 30px;
+    line-height: 1;
+    cursor: pointer;
+    color: #718096;
+}
+
+.pin-modal-detail {
+    color: #4a5568;
+    margin-bottom: 18px;
+}
+
+.pin-form {
+    display: grid;
+    gap: 16px;
+}
+
+.pin-form textarea {
+    min-height: 90px;
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font: inherit;
+    resize: vertical;
+}
+
+.pin-rating-row {
+    align-items: center;
+}
+
+.pin-aggregate-score {
+    margin-top: -4px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.pin-modal-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.pin-remove-btn {
+    width: 100%;
+    margin-top: 8px;
+}
+
+.confetti-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 80;
+}
+
+.confetti-piece {
+    position: absolute;
+    top: -20px;
+    width: 12px;
+    height: 18px;
+    border-radius: 3px;
+    opacity: 0;
+    animation: confetti-fall 1800ms ease-in forwards;
+}
+
+@keyframes confetti-fall {
+    0% {
+        opacity: 0;
+        transform: translate3d(0, 0, 0) rotate(0deg) scale(0.7);
+    }
+    12% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translate3d(var(--drift, 80px), 110vh, 0) rotate(var(--rotation, 180deg)) scale(1);
+    }
+}
+
+#add-pin-form input {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 15px;
+}
+
 /* The Bubble Cards */
 .bubble {
     background: #ffffff;
