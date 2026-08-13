@@ -23,6 +23,25 @@ let activeActivityId = null;
 let nikScoreTouched = false;
 let leiScoreTouched = false;
 
+// --- Firebase realtime sync setup
+const firebaseConfig = {
+    apiKey: "AIzaSyBxkrNYSVqVf2_7wyHl6sA7i6MQ_OY69cg",
+    authDomain: "guide-to-the-outside.firebaseapp.com",
+    projectId: "guide-to-the-outside",
+    storageBucket: "guide-to-the-outside.firebasestorage.app",
+    messagingSenderId: "242577301245",
+    appId: "1:242577301245:web:17387fc6b1df7fa456e894",
+    measurementId: "G-YB4TQN6S6Q"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const pinsRef = db.ref('pinBoardEntries');
+const activitiesRef = db.ref('activities');
+
+let isApplyingRemotePins = false;
+let isApplyingRemoteActivities = false;
+
 function loadActivities() {
     const savedActivities = localStorage.getItem(STORAGE_KEY);
 
@@ -40,6 +59,9 @@ function loadActivities() {
 
 function saveActivities() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
+    if (!isApplyingRemoteActivities) {
+        activitiesRef.set(activities).catch(err => console.warn('Firebase activities set error', err));
+    }
 }
 
 function escapeHtml(value) {
@@ -416,6 +438,9 @@ function loadPins() {
 
 function savePins() {
     localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinBoardEntries));
+    if (!isApplyingRemotePins) {
+        pinsRef.set(pinBoardEntries).catch(err => console.warn('Firebase pins set error', err));
+    }
 }
 
 function launchConfettiBurst() {
@@ -755,6 +780,34 @@ if (pinRemoveButton) {
 
 renderPins();
 renderReviews();
+
+// Listen for remote pin updates and apply locally
+pinsRef.on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+
+    // Firebase may return an object for lists; convert to array
+    const arr = Array.isArray(data) ? data : Object.values(data);
+    isApplyingRemotePins = true;
+    pinBoardEntries = arr.map(normalizePin);
+    localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinBoardEntries));
+    renderPins();
+    renderReviews();
+    isApplyingRemotePins = false;
+});
+
+// Listen for remote activities updates and apply locally
+activitiesRef.on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+
+    const arr = Array.isArray(data) ? data : Object.values(data);
+    isApplyingRemoteActivities = true;
+    activities = arr;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
+    renderActivities();
+    isApplyingRemoteActivities = false;
+});
 
 if (navButtons) {
     navButtons.forEach(button => {
