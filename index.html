@@ -45,7 +45,63 @@
             <div class="list-view">
                 <p style="color: #a0aec0; text-align: center; padding: 40px 0;">[planetarium, golf]</p>
             </div>
+
+            <!-- Pinboard: Past / Present / Future -->
+            <section class="pinboard animate-fade-in-delayed">
+                <div class="pin-column" data-column="past">
+                    <h4 class="column-title">Past</h4>
+                    <div class="pins">
+                        <div class="pin" draggable="true" data-id="pin-1">
+                            <div class="pin-handle">📌</div>
+                            <h5 contenteditable class="pin-title">Found a cool cafe</h5>
+                            <p contenteditable class="pin-desc">Ate pancakes by the window.</p>
+                            <div class="pin-controls">
+                                <button class="complete-btn">Toss to Completed</button>
+                                <input class="color-picker" type="color" value="#ffffff" title="Pin color">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pin-column" data-column="present">
+                    <h4 class="column-title">Present</h4>
+                    <div class="pins">
+                        <div class="pin" draggable="true" data-id="pin-2">
+                            <div class="pin-handle">📌</div>
+                            <h5 contenteditable class="pin-title">Today: Sketching</h5>
+                            <p contenteditable class="pin-desc">Drawing at the park.</p>
+                            <div class="pin-controls">
+                                <button class="complete-btn">Toss to Completed</button>
+                                <input class="color-picker" type="color" value="#ffffff" title="Pin color">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pin-column" data-column="future">
+                    <h4 class="column-title">Future</h4>
+                    <div class="pins">
+                        <div class="pin" draggable="true" data-id="pin-3">
+                            <div class="pin-handle">📌</div>
+                            <h5 contenteditable class="pin-title">Plan: Beach day</h5>
+                            <p contenteditable class="pin-desc">Bring snacks and a frisbee.</p>
+                            <div class="pin-controls">
+                                <button class="complete-btn">Toss to Completed</button>
+                                <input class="color-picker" type="color" value="#ffffff" title="Pin color">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Completed area where pins become a single "bubAdventures" pin -->
+            <section class="completed-area animate-fade-in-delayed">
+                <h4 class="column-title">Completed BubAdventures</h4>
+                <div class="completed-dropzone" id="completedDrop">Drop or click "Toss to Completed" here</div>
+                <div id="completedList" class="completed-list"></div>
+            </section>
         </main>
-    </div>
+</div>
+    <script src="script.js"></script>
 </body>
 </html>

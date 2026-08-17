@@ -214,3 +214,95 @@ html {
     border: 1px solid #e2e8f0;
     min-height: 300px;
 }
+
+/* ========================================== */
+/* PINBOARD STYLES                            */
+/* ========================================== */
+.pinboard {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 28px;
+}
+
+.pin-column {
+    background: #fff7f5;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid #f1e6e4;
+    min-height: 160px;
+}
+
+.column-title {
+    font-size: 14px;
+    color: #4a4a4a;
+    margin-bottom: 8px;
+}
+
+.pins {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pin {
+    background: #ffffff;
+    padding: 12px 12px 10px 12px;
+    border-radius: 14px;
+    border: 1px solid #e6e6e6;
+    box-shadow: 0 6px 10px rgba(0,0,0,0.04);
+    cursor: grab;
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 10px;
+    align-items: start;
+    transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.pin:active { cursor: grabbing; }
+
+.pin-handle { font-size: 18px; align-self: center; }
+
+.pin-title { font-size: 15px; margin: 0; outline: none; }
+.pin-desc { font-size: 13px; margin-top: 6px; color: #6b7280; outline: none; }
+
+.pin-controls { grid-column: 2; margin-top: 8px; display:flex; gap:8px; align-items:center; }
+.pin .complete-btn { background:#3182ce; color:white; border:none; padding:6px 8px; border-radius:8px; cursor:pointer; font-size:13px; }
+.pin .color-picker { width:34px; height:28px; border-radius:6px; border:none; padding:0; }
+
+.pin:hover { transform: translateY(-4px) rotate(-0.5deg); box-shadow: 0 12px 18px rgba(0,0,0,0.08); }
+.pin.dragging { opacity: 0.6; transform: scale(0.98); }
+
+/* Completed area */
+.completed-area { margin-top: 22px; }
+.completed-dropzone {
+    border: 2px dashed rgba(45,55,72,0.08);
+    padding: 18px;
+    border-radius: 12px;
+    text-align: center;
+    color: #718096;
+    margin-bottom: 12px;
+}
+.completed-dropzone.drag-over { background: #f0fff4; border-color: rgba(47,133,90,0.2); }
+.completed-list { display:flex; gap:12px; flex-wrap:wrap; }
+.completed-item {
+    background: linear-gradient(180deg,#fffef7,#f6fff4);
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #e6f5ea;
+    min-width: 180px;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.04);
+}
+
+/* Hover micro-movement when touched */
+.pin.hovered { transform: translateY(-8px) rotate(2deg) scale(1.02); }
+
+/* small responsive adjustments */
+@media (max-width: 820px) {
+    .pinboard { grid-template-columns: 1fr; }
+}
+
+/* offscreen animation used during toss */
+.toss-away {
+    transition: transform 600ms cubic-bezier(.22,.9,.33,1), opacity 400ms ease;
+}
