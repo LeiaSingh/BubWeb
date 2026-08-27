@@ -27,11 +27,7 @@ const PIN_STORAGE_KEY = 'bubweb-pin-board';
 let activities = loadActivities();
 let activeActivityId = null;
 
-<<<<<<< HEAD
-// Firebase Setup[cite: 3]
-=======
 // --- Firebase Config & Setup ---
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 const firebaseConfig = {
     apiKey: "AIzaSyBxkrNYSVqVf2_7wyHl6sA7i6MQ_OY69cg",
     authDomain: "guide-to-the-outside.firebaseapp.com",
@@ -50,67 +46,25 @@ const activitiesRef = db.ref('activities');
 let isApplyingRemotePins = false;
 let isApplyingRemoteActivities = false;
 
-<<<<<<< HEAD
-=======
-// Default initial state
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 const DEFAULT_PIN_BOARD = [
     {
         id: 'wishlist',
         title: 'Hike & Picnic!',
-<<<<<<< HEAD
         details: 'Next weekend in the mountains',
-=======
-        details: 'Next weekend up the mountains',
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
         tag: 'Next Wishlist Item',
         type: 'next-up',
         completed: false,
         review: '',
-<<<<<<< HEAD
         image: '',
         nikScore: null,
         leiScore: null,
         rating: null,
         liked: false
-=======
-        rating: 0,
-        nikScore: 5,
-        leiScore: 5,
-        liked: false
-    },
-    {
-        id: 'event',
-        title: 'Movie Marathon',
-        details: 'Watching on FRIDAY night',
-        tag: 'Upcoming Event',
-        type: 'event',
-        completed: false,
-        review: '',
-        rating: 0,
-        nikScore: 5,
-        leiScore: 5,
-        liked: false
-    },
-    {
-        id: 'odyssey',
-        title: 'The Odyssey',
-        details: 'Ticked! Great visuals & atmosphere.',
-        tag: 'Latest Memory',
-        type: 'memory',
-        completed: true,
-        review: 'Ticked! Great visuals and atmosphere.',
-        rating: 9.0,
-        nikScore: 9.0,
-        leiScore: 9.0,
-        liked: true
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
     }
 ];
 
 let pinBoardEntries = loadPins();
 let activePinId = null;
-<<<<<<< HEAD
 let currentPinImageBase64 = null;
 let pinNikRatingModified = false;
 let pinLeiRatingModified = false;
@@ -132,7 +86,7 @@ function normalizePin(pin) {
         id: pin.id || `pin-${Date.now()}`,
         title: pin.title || 'Untitled Adventure',
         details: pin.details || '',
-        tag: pin.tag || 'Adventure Pin',
+        tag: pin.tag || (pin.type === 'memory' ? 'Latest Memory' : (pin.type === 'event' ? 'Upcoming Event' : 'Next Wishlist Item')),
         type: pin.type || 'next-up',
         completed: !!pin.completed,
         review: pin.review || '',
@@ -140,26 +94,6 @@ function normalizePin(pin) {
         nikScore: nik,
         leiScore: lei,
         rating: computedRating,
-=======
-
-// --- Helper Functions ---
-function normalizePin(pin) {
-    const nik = Number(pin?.nikScore ?? pin?.rating ?? 5.0);
-    const lei = Number(pin?.leiScore ?? pin?.rating ?? 5.0);
-    const avg = ((nik + lei) / 2).toFixed(1);
-
-    return {
-        id: pin.id || `pin-${Date.now()}`,
-        title: pin.title || 'Untitled BubAdventure',
-        details: pin.details || '',
-        tag: pin.tag || (pin.type === 'memory' ? 'Latest Memory' : (pin.type === 'event' ? 'Upcoming Event' : 'Next Wishlist Item')),
-        type: pin.type || 'next-up',
-        completed: !!pin.completed,
-        review: pin.review || '',
-        nikScore: nik,
-        leiScore: lei,
-        rating: Number(avg),
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
         liked: !!pin.liked
     };
 }
@@ -173,13 +107,9 @@ function loadActivities() {
 
 function saveActivities() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
-<<<<<<< HEAD
-    if (!isApplyingRemoteActivities) activitiesRef.set(activities);
-=======
     if (!isApplyingRemoteActivities) {
         activitiesRef.set(activities).catch(e => console.warn(e));
     }
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 }
 
 function loadPins() {
@@ -189,8 +119,6 @@ function loadPins() {
         return (Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_PIN_BOARD).map(normalizePin);
     } catch (e) {
         return DEFAULT_PIN_BOARD.map(normalizePin);
-<<<<<<< HEAD
-=======
     }
 }
 
@@ -198,13 +126,7 @@ function savePins() {
     localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinBoardEntries));
     if (!isApplyingRemotePins) {
         pinsRef.set(pinBoardEntries).catch(e => console.warn(e));
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
     }
-}
-
-function savePins() {
-    localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinBoardEntries));
-    if (!isApplyingRemotePins) pinsRef.set(pinBoardEntries);
 }
 
 function escapeHtml(value) {
@@ -235,16 +157,11 @@ function launchConfettiBurst() {
     }
 }
 
-<<<<<<< HEAD
-// --- Render Pin Board with Polaroids ---
-=======
-// --- Dynamic Pin Board & Interactive Physics ---
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
+// --- Render Pin Board with Polaroids & Interactive Physics ---
 const pinBoard = document.getElementById('pin-board');
 
 function renderPins() {
     if (!pinBoard) return;
-<<<<<<< HEAD
 
     pinBoard.innerHTML = pinBoardEntries.map(pin => {
         const photoPreview = pin.image 
@@ -254,13 +171,9 @@ function renderPins() {
         const scoreText = pin.rating !== null 
             ? `★ ${pin.rating.toFixed(1)}/10` 
             : 'Unrated';
-=======
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 
-    pinBoard.innerHTML = pinBoardEntries.map(pin => {
         return `
-<<<<<<< HEAD
-            <div class="pin-card post-it ${pin.type}" data-id="${pin.id}" tabindex="0">
+            <div class="pin-card post-it ${pin.type} ${pin.completed ? 'done' : ''}" data-id="${pin.id}" tabindex="0">
                 <div class="pin-head">📌</div>
                 <span class="bubble-tag">${escapeHtml(pin.tag)}</span>
                 ${photoPreview}
@@ -269,47 +182,20 @@ function renderPins() {
                 <div class="pin-meta">
                     <span>${pin.liked ? '♥ Favorited' : '♡'}</span>
                     <span>${scoreText}</span>
-                    <span>${pin.completed ? '✓ Done' : 'Planned'}</span>
-=======
-            <div class="pin-card post-it ${pin.type} ${pin.completed ? 'done' : ''}" data-id="${pin.id}" tabindex="0">
-                <div class="pin-head">📌</div>
-                <span class="bubble-tag">${escapeHtml(pin.tag)}</span>
-                <h3>${escapeHtml(pin.title)}</h3>
-                <p>${escapeHtml(pin.details)}</p>
-                <div class="pin-meta">
-                    <span>${pin.liked ? '♥ liked' : '♡ maybe'}</span>
-                    ${pin.completed ? '<span class="pin-status">✓ Completed</span>' : '<span class="pin-status">Planned</span>'}
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
+                    <span>${pin.completed ? '✓ Completed' : 'Planned'}</span>
                 </div>
             </div>
         `;
     }).join('');
 
-<<<<<<< HEAD
-    pinBoard.querySelectorAll('.pin-card').forEach(card => {
-        card.addEventListener('click', () => openPinModal(card.dataset.id));
-    });
-}
-
-// --- Render Reviews Wall ---
-const reviewList = document.getElementById('review-list');
-
-function renderReviews() {
-    if (!reviewList) return;
-    const completed = pinBoardEntries.filter(p => p.completed || p.review || p.image);
-
-    if (!completed.length) {
-        reviewList.innerHTML = '<p class="empty-state">No reviewed adventures in the vault yet.</p>';
-=======
-    // Attach dynamic hover/touch physics to cards
     pinBoard.querySelectorAll('.pin-card').forEach(card => {
         card.addEventListener('pointermove', (e) => {
             const rect = card.getBoundingClientRect();
             const x = e.clientX - rect.left - rect.width / 2;
             const y = e.clientY - rect.top - rect.height / 2;
-            const tiltX = (y / rect.height) * -12;
-            const tiltY = (x / rect.width) * 12;
-            card.style.transform = `perspective(600px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.04)`;
+            const tiltX = (y / rect.height) * -10;
+            const tiltY = (x / rect.width) * 10;
+            card.style.transform = `perspective(600px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.03)`;
         });
 
         card.addEventListener('pointerleave', () => {
@@ -322,43 +208,29 @@ function renderReviews() {
     });
 }
 
+// --- Render Reviews Wall ---
+const reviewList = document.getElementById('review-list');
+
 function renderReviews() {
     if (!reviewList) return;
-    const completed = pinBoardEntries.filter(pin => pin.completed);
+    const completed = pinBoardEntries.filter(p => p.completed || p.review || p.image);
 
     if (!completed.length) {
-        reviewList.innerHTML = '<p class="empty-state">No completed BubAdventures in the review wall yet.</p>';
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
+        reviewList.innerHTML = '<p class="empty-state">No reviewed adventures in the vault yet.</p>';
         return;
     }
 
     reviewList.innerHTML = completed.map(pin => {
-<<<<<<< HEAD
         const photoHtml = pin.image ? `<div class="polaroid-preview-card"><img src="${pin.image}" alt="${escapeHtml(pin.title)}"></div>` : '';
         const nikDisplay = pin.nikScore !== null ? `${pin.nikScore.toFixed(1)}/10` : '—';
         const leiDisplay = pin.leiScore !== null ? `${pin.leiScore.toFixed(1)}/10` : '—';
         const avgDisplay = pin.rating !== null ? `${pin.rating.toFixed(1)}/10` : '—';
 
-=======
-        const avg = ((pin.nikScore + pin.leiScore) / 2).toFixed(1);
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
         return `
             <article class="review-card">
                 <div class="review-meta">
                     <span>${escapeHtml(pin.tag)}</span>
-<<<<<<< HEAD
                     <span>BubScore: ${avgDisplay}</span>
-=======
-                    <span>BubScore: ${avg} / 10 ★</span>
-                </div>
-                <h4 style="font-size: 18px; margin: 6px 0;">${escapeHtml(pin.title)}</h4>
-                <p style="color: #4a5568;">${escapeHtml(pin.review || pin.details)}</p>
-                <p style="font-size: 13px; font-weight: 700; margin-top: 8px; color: #2d3748;">
-                    Nik: ${pin.nikScore.toFixed(1)}/10 • Lei: ${pin.leiScore.toFixed(1)}/10 • ${pin.liked ? '♥ Liked' : '♡'}
-                </p>
-                <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
-                    <button type="button" class="ghost-btn edit-review-btn" data-id="${pin.id}">Edit adventure</button>
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
                 </div>
                 ${photoHtml}
                 <h4 style="font-size: 18px; margin: 6px 0;">${escapeHtml(pin.title)}</h4>
@@ -366,12 +238,21 @@ function renderReviews() {
                 <p style="font-size: 12.5px; font-weight: 700; margin-top: 8px; color: #2d3748;">
                     Nik: ${nikDisplay} • Lei: ${leiDisplay} • ${pin.liked ? '♥ Liked' : '♡'}
                 </p>
+                <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                    <button type="button" class="ghost-btn edit-review-btn" data-id="${pin.id}">Edit adventure</button>
+                </div>
             </article>
         `;
     }).join('');
 }
 
-<<<<<<< HEAD
+if (reviewList) {
+    reviewList.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.edit-review-btn');
+        if (editBtn) openPinModal(editBtn.dataset.id);
+    });
+}
+
 // --- Image Compression Helper ---
 function compressImage(file, callback) {
     const reader = new FileReader();
@@ -394,17 +275,10 @@ function compressImage(file, callback) {
 }
 
 // --- Pin Modal & Independent Rating Logic ---
-=======
-// --- Pin Modal (Full Edit) ---
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 const pinModal = document.getElementById('pin-modal');
 const pinTitleInput = document.getElementById('pin-title-input');
 const pinDetailsInput = document.getElementById('pin-details-input');
 const pinTypeInput = document.getElementById('pin-type-input');
-<<<<<<< HEAD
-=======
-const pinCompletedInput = document.getElementById('pin-completed-input');
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 const pinReviewInput = document.getElementById('pin-review-input');
 const pinPhotoInput = document.getElementById('pin-photo-input');
 const pinPhotoTriggerBtn = document.getElementById('pin-photo-trigger-btn');
@@ -419,7 +293,6 @@ const pinLikeButton = document.getElementById('pin-like-btn');
 const pinForm = document.getElementById('pin-form');
 const pinRemoveButton = document.getElementById('pin-remove-btn');
 
-<<<<<<< HEAD
 pinPhotoTriggerBtn.addEventListener('click', () => pinPhotoInput.click());
 
 pinPhotoInput.addEventListener('change', (e) => {
@@ -460,18 +333,6 @@ pinLeiRatingInput.addEventListener('input', () => {
     pinLeiRatingModified = true;
     updatePinScoreLabels();
 });
-=======
-function updateModalScoreLabel() {
-    const nik = Number(pinNikRatingInput.value);
-    const lei = Number(pinLeiRatingInput.value);
-    pinNikRatingValue.textContent = nik.toFixed(1);
-    pinLeiRatingValue.textContent = lei.toFixed(1);
-    pinAggregateScore.textContent = `BubScore: ${((nik + lei) / 2).toFixed(1)} / 10.0`;
-}
-
-pinNikRatingInput.addEventListener('input', updateModalScoreLabel);
-pinLeiRatingInput.addEventListener('input', updateModalScoreLabel);
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 
 function openPinModal(pinId) {
     const pin = pinBoardEntries.find(p => p.id === pinId);
@@ -481,10 +342,8 @@ function openPinModal(pinId) {
     pinTitleInput.value = pin.title;
     pinDetailsInput.value = pin.details;
     pinTypeInput.value = pin.type;
-<<<<<<< HEAD
     pinReviewInput.value = pin.review || '';
     
-    // Save previous states
     pinNikRatingValue.dataset.original = pin.nikScore !== null ? String(pin.nikScore) : 'null';
     pinLeiRatingValue.dataset.original = pin.leiScore !== null ? String(pin.leiScore) : 'null';
     
@@ -502,27 +361,14 @@ function openPinModal(pinId) {
     pinLikeButton.textContent = pin.liked ? '♥ Favorited' : '♡ Favorite';
 
     updatePinScoreLabels();
-=======
-    pinCompletedInput.checked = pin.completed;
-    pinReviewInput.value = pin.review || '';
-    pinNikRatingInput.value = pin.nikScore ?? 5.0;
-    pinLeiRatingInput.value = pin.leiScore ?? 5.0;
-    pinLikeButton.dataset.liked = pin.liked ? 'true' : 'false';
-    pinLikeButton.textContent = pin.liked ? '♥ Liked' : '♡ Like it';
-
-    updateModalScoreLabel();
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
     pinModal.classList.remove('hidden');
 }
 
 function closePinModal() {
     pinModal.classList.add('hidden');
     activePinId = null;
-<<<<<<< HEAD
     currentPinImageBase64 = null;
     pinPhotoInput.value = '';
-=======
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 }
 
 document.getElementById('pin-modal-close').addEventListener('click', closePinModal);
@@ -531,11 +377,7 @@ document.querySelector('[data-close="true"]').addEventListener('click', closePin
 pinLikeButton.addEventListener('click', () => {
     const current = pinLikeButton.dataset.liked === 'true';
     pinLikeButton.dataset.liked = String(!current);
-<<<<<<< HEAD
     pinLikeButton.textContent = !current ? '♥ Favorited' : '♡ Favorite';
-=======
-    pinLikeButton.textContent = !current ? '♥ Liked' : '♡ Like it';
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 });
 
 pinForm.addEventListener('submit', (e) => {
@@ -543,21 +385,15 @@ pinForm.addEventListener('submit', (e) => {
     const pin = pinBoardEntries.find(p => p.id === activePinId);
     if (!pin) return;
 
-<<<<<<< HEAD
-=======
     const wasCompleted = pin.completed;
-    const isNowCompleted = pinCompletedInput.checked;
 
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
     pin.title = pinTitleInput.value.trim();
     pin.details = pinDetailsInput.value.trim();
     pin.type = pinTypeInput.value;
     pin.tag = pin.type === 'memory' ? 'Latest Memory' : (pin.type === 'event' ? 'Upcoming Event' : 'Next Wishlist Item');
-<<<<<<< HEAD
     pin.review = pinReviewInput.value.trim();
     pin.image = currentPinImageBase64 || pin.image;
 
-    // Preserve the other person's score if untouched
     if (pinNikRatingModified) {
         pin.nikScore = Number(pinNikRatingInput.value);
     }
@@ -571,51 +407,10 @@ pinForm.addEventListener('submit', (e) => {
         pin.rating = pin.nikScore;
     } else if (pin.leiScore !== null) {
         pin.rating = pin.leiScore;
-=======
-    pin.completed = isNowCompleted;
-    pin.review = pinReviewInput.value.trim();
-    pin.nikScore = Number(pinNikRatingInput.value);
-    pin.leiScore = Number(pinLeiRatingInput.value);
-    pin.rating = Number(((pin.nikScore + pin.leiScore) / 2).toFixed(1));
+    }
+
     pin.liked = pinLikeButton.dataset.liked === 'true';
-
-    // If marked as memory/completed, auto-set type to memory
-    if (isNowCompleted && pin.type !== 'memory') {
-        pin.type = 'memory';
-        pin.tag = 'Latest Memory';
-    }
-
-    savePins();
-    renderPins();
-    renderReviews();
-    closePinModal();
-
-    // Trigger toss animation on the card
-    if (!wasCompleted && isNowCompleted) {
-        launchConfettiBurst();
-        const activeCard = document.querySelector(`.pin-card[data-id="${pin.id}"]`);
-        if (activeCard) {
-            activeCard.classList.add('tossing');
-            setTimeout(() => activeCard.classList.remove('tossing'), 650);
-        }
-    }
-});
-
-pinRemoveButton.addEventListener('click', () => {
-    if (!activePinId) return;
-    if (confirm('Are you sure you want to remove this BubAdventure pin?')) {
-        pinBoardEntries = pinBoardEntries.filter(p => p.id !== activePinId);
-        savePins();
-        renderPins();
-        renderReviews();
-        closePinModal();
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
-    }
-});
-
-<<<<<<< HEAD
-    pin.liked = pinLikeButton.dataset.liked === 'true';
-    if (pin.review || pin.image || pin.rating !== null) {
+    if (pin.review || pin.image || pin.rating !== null || pin.type === 'memory') {
         pin.completed = true;
     }
 
@@ -623,7 +418,15 @@ pinRemoveButton.addEventListener('click', () => {
     renderPins();
     renderReviews();
     closePinModal();
-    launchConfettiBurst();
+
+    if (!wasCompleted && pin.completed) {
+        launchConfettiBurst();
+        const activeCard = document.querySelector(`.pin-card[data-id="${pin.id}"]`);
+        if (activeCard) {
+            activeCard.classList.add('tossing');
+            setTimeout(() => activeCard.classList.remove('tossing'), 650);
+        }
+    }
 });
 
 pinRemoveButton.addEventListener('click', () => {
@@ -637,8 +440,6 @@ pinRemoveButton.addEventListener('click', () => {
     }
 });
 
-=======
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 // --- Add Pin Modal ---
 const addPinModal = document.getElementById('add-pin-modal');
 const addPinForm = document.getElementById('add-pin-form');
@@ -657,17 +458,11 @@ addPinForm.addEventListener('submit', (e) => {
     const details = newPinDetails.value.trim();
     const type = newPinType.value;
     if (!title || !details) return;
-<<<<<<< HEAD
-=======
-
-    const tag = type === 'memory' ? 'Latest Memory' : (type === 'event' ? 'Upcoming Event' : 'Next Wishlist Item');
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 
     pinBoardEntries.unshift({
         id: `pin-${Date.now()}`,
         title,
         details,
-<<<<<<< HEAD
         tag: type === 'memory' ? 'Latest Memory' : (type === 'event' ? 'Upcoming Event' : 'Next Wishlist Item'),
         type,
         completed: type === 'memory',
@@ -676,15 +471,6 @@ addPinForm.addEventListener('submit', (e) => {
         nikScore: null,
         leiScore: null,
         rating: null,
-=======
-        tag,
-        type,
-        completed: type === 'memory',
-        review: '',
-        nikScore: 5.0,
-        leiScore: 5.0,
-        rating: 5.0,
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
         liked: false
     });
 
@@ -696,7 +482,6 @@ addPinForm.addEventListener('submit', (e) => {
     launchConfettiBurst();
 });
 
-<<<<<<< HEAD
 // --- Scheduled Activity Scoring Logic ---
 function updateActivitySliderLabels() {
     nikScoreValue.textContent = nikScoreModified ? Number(nikScoreInput.value).toFixed(1) : (nikScoreValue.dataset.original !== 'null' ? Number(nikScoreValue.dataset.original).toFixed(1) : '—');
@@ -782,66 +567,6 @@ activityList.addEventListener('click', (e) => {
         completionForm.classList.remove('hidden');
     }
 
-=======
-// --- Activity List Setup ---
-function renderActivities() {
-    if (!activityList) return;
-    if (!activities.length) {
-        activityList.innerHTML = '<p class="empty-state">We are two bubs in a pod...</p>';
-        return;
-    }
-
-    activityList.innerHTML = activities.map(act => {
-        return `
-            <article class="bubble activity-card">
-                <div>
-                    <h4>${escapeHtml(act.name)}</h4>
-                    <p>${act.date} at ${act.time}</p>
-                    ${act.completed ? `<p style="color: #2f855a; font-weight:700; margin-top:4px;">Score: ${act.finalScore}/10</p>` : ''}
-                </div>
-                <div class="activity-actions">
-                    <button type="button" class="save-btn complete-btn" data-id="${act.id}">${act.completed ? 'Edit score' : 'Score it'}</button>
-                    <button type="button" class="ghost-btn delete-btn" data-id="${act.id}">Delete</button>
-                </div>
-            </article>
-        `;
-    }).join('');
-}
-
-activityForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    activities.unshift({
-        id: Date.now(),
-        name: activityNameInput.value.trim(),
-        date: activityDateInput.value,
-        time: activityTimeInput.value,
-        completed: false,
-        nikScore: null,
-        leiScore: null,
-        finalScore: null
-    });
-    saveActivities();
-    renderActivities();
-    activityForm.reset();
-});
-
-activityList.addEventListener('click', (e) => {
-    const completeBtn = e.target.closest('.complete-btn');
-    const delBtn = e.target.closest('.delete-btn');
-
-    if (completeBtn) {
-        const act = activities.find(a => a.id === Number(completeBtn.dataset.id));
-        if (!act) return;
-        activeActivityId = act.id;
-        completionTitle.textContent = `Score: ${act.name}`;
-        nikScoreInput.value = act.nikScore ?? 5.0;
-        leiScoreInput.value = act.leiScore ?? 5.0;
-        nikScoreValue.textContent = Number(nikScoreInput.value).toFixed(1);
-        leiScoreValue.textContent = Number(leiScoreInput.value).toFixed(1);
-        completionForm.classList.remove('hidden');
-    }
-
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
     if (delBtn) {
         if (confirm('Delete this activity?')) {
             activities = activities.filter(a => a.id !== Number(delBtn.dataset.id));
@@ -854,7 +579,6 @@ activityList.addEventListener('click', (e) => {
 saveCompletionButton.addEventListener('click', () => {
     const act = activities.find(a => a.id === activeActivityId);
     if (!act) return;
-<<<<<<< HEAD
 
     if (nikScoreModified) {
         act.nikScore = Number(nikScoreInput.value);
@@ -872,12 +596,6 @@ saveCompletionButton.addEventListener('click', () => {
         act.finalScore = act.leiScore;
     }
 
-=======
-    act.nikScore = Number(nikScoreInput.value);
-    act.leiScore = Number(leiScoreInput.value);
-    act.finalScore = Number(((act.nikScore + act.leiScore) / 2).toFixed(1));
-    act.completed = true;
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
     saveActivities();
     renderActivities();
     completionForm.classList.add('hidden');
@@ -885,11 +603,7 @@ saveCompletionButton.addEventListener('click', () => {
 
 cancelCompletionButton.addEventListener('click', () => completionForm.classList.add('hidden'));
 
-<<<<<<< HEAD
 // --- Navigation Tabs ---
-=======
-// --- Navigation ---
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 navButtons.forEach(btn => {
     btn.addEventListener('click', () => {
         navButtons.forEach(b => b.classList.remove('active'));
@@ -906,19 +620,7 @@ navButtons.forEach(btn => {
     });
 });
 
-<<<<<<< HEAD
 // --- Remote Sync ---
-=======
-const reviewList = document.getElementById('review-list');
-if (reviewList) {
-    reviewList.addEventListener('click', (e) => {
-        const editBtn = e.target.closest('.edit-review-btn');
-        if (editBtn) openPinModal(editBtn.dataset.id);
-    });
-}
-
-// --- Firebase Realtime Database Sync Listeners ---
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 pinsRef.on('value', (snap) => {
     const data = snap.val();
     if (!data) return;
@@ -940,10 +642,6 @@ activitiesRef.on('value', (snap) => {
     isApplyingRemoteActivities = false;
 });
 
-<<<<<<< HEAD
-=======
-// Initial Render
->>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
 renderPins();
 renderActivities();
 renderReviews();
