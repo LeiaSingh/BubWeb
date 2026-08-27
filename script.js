@@ -8,7 +8,6 @@ const activityNameInput = document.getElementById('activity-name');
 const activityDateInput = document.getElementById('activity-date');
 const activityTimeInput = document.getElementById('activity-time');
 
-// Completion form sliders & tracking
 const completionForm = document.getElementById('completion-form');
 const completionTitle = document.getElementById('completion-title');
 const nikScoreInput = document.getElementById('nik-score');
@@ -23,6 +22,7 @@ let leiScoreModified = false;
 
 const STORAGE_KEY = 'bubweb-activities';
 const PIN_STORAGE_KEY = 'bubweb-pin-board';
+const DEFAULT_ALBUM_URL = 'https://photos.app.goo.gl/ZpFHXuDFiwuU2qzXA';
 
 let activities = loadActivities();
 let activeActivityId = null;
@@ -55,7 +55,8 @@ const DEFAULT_PIN_BOARD = [
         type: 'next-up',
         completed: false,
         review: '',
-        image: '',
+        albumUrl: DEFAULT_ALBUM_URL,
+        images: [],
         nikScore: null,
         leiScore: null,
         rating: null,
@@ -65,7 +66,7 @@ const DEFAULT_PIN_BOARD = [
 
 let pinBoardEntries = loadPins();
 let activePinId = null;
-let currentPinImageBase64 = null;
+let currentPinImages = [];
 let pinNikRatingModified = false;
 let pinLeiRatingModified = false;
 
@@ -82,6 +83,13 @@ function normalizePin(pin) {
         computedRating = lei;
     }
 
+    let images = [];
+    if (Array.isArray(pin?.images)) {
+        images = pin.images;
+    } else if (pin?.image) {
+        images = [pin.image];
+    }
+
     return {
         id: pin.id || `pin-${Date.now()}`,
         title: pin.title || 'Untitled Adventure',
@@ -90,7 +98,8 @@ function normalizePin(pin) {
         type: pin.type || 'next-up',
         completed: !!pin.completed,
         review: pin.review || '',
-        image: pin.image || '',
+        albumUrl: pin.albumUrl || DEFAULT_ALBUM_URL,
+        images: images,
         nikScore: nik,
         leiScore: lei,
         rating: computedRating,
@@ -157,26 +166,40 @@ function launchConfettiBurst() {
     }
 }
 
-// --- Render Pin Board with Polaroids & Interactive Physics ---
+// --- Render Pin Board ---
 const pinBoard = document.getElementById('pin-board');
 
 function renderPins() {
     if (!pinBoard) return;
 
     pinBoard.innerHTML = pinBoardEntries.map(pin => {
-        const photoPreview = pin.image 
-            ? `<div class="polaroid-preview-card"><img src="${pin.image}" alt="Memory photo"></div>` 
-            : '';
+        const photos = pin.images && pin.images.length ? pin.images : (pin.image ? [pin.image] : []);
+        
+        let galleryHtml = '';
+        if (photos.length > 0) {
+            galleryHtml = `
+                <div class="polaroid-gallery">
+                    ${photos.slice(0, 3).map(src => `<div class="polaroid-preview-card"><img src="${src}" alt="Memory"></div>`).join('')}
+                </div>
+            `;
+        }
 
         const scoreText = pin.rating !== null 
             ? `★ ${pin.rating.toFixed(1)}/10` 
             : 'Unrated';
 
+        const albumBtn = pin.albumUrl 
+            ? `<a href="${pin.albumUrl}" target="_blank" rel="noopener noreferrer" class="ghost-btn album-chip" onclick="event.stopPropagation()">📸 Google Photos</a>` 
+            : '';
+
         return `
             <div class="pin-card post-it ${pin.type} ${pin.completed ? 'done' : ''}" data-id="${pin.id}" tabindex="0">
                 <div class="pin-head">📌</div>
-                <span class="bubble-tag">${escapeHtml(pin.tag)}</span>
-                ${photoPreview}
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="bubble-tag">${escapeHtml(pin.tag)}</span>
+                    ${albumBtn}
+                </div>
+                ${galleryHtml}
                 <h3>${escapeHtml(pin.title)}</h3>
                 <p>${escapeHtml(pin.details)}</p>
                 <div class="pin-meta">
@@ -213,7 +236,7 @@ const reviewList = document.getElementById('review-list');
 
 function renderReviews() {
     if (!reviewList) return;
-    const completed = pinBoardEntries.filter(p => p.completed || p.review || p.image);
+    const completed = pinBoardEntries.filter(p => p.completed || p.review || (p.images && p.images.length));
 
     if (!completed.length) {
         reviewList.innerHTML = '<p class="empty-state">No reviewed adventures in the vault yet.</p>';
@@ -221,10 +244,18 @@ function renderReviews() {
     }
 
     reviewList.innerHTML = completed.map(pin => {
-        const photoHtml = pin.image ? `<div class="polaroid-preview-card"><img src="${pin.image}" alt="${escapeHtml(pin.title)}"></div>` : '';
+        const photos = pin.images && pin.images.length ? pin.images : (pin.image ? [pin.image] : []);
+        const galleryHtml = photos.length > 0 
+            ? `<div class="polaroid-gallery" style="margin-bottom: 10px;">${photos.map(src => `<div class="polaroid-preview-card"><img src="${src}"></div>`).join('')}</div>`
+            : '';
+
         const nikDisplay = pin.nikScore !== null ? `${pin.nikScore.toFixed(1)}/10` : '—';
         const leiDisplay = pin.leiScore !== null ? `${pin.leiScore.toFixed(1)}/10` : '—';
         const avgDisplay = pin.rating !== null ? `${pin.rating.toFixed(1)}/10` : '—';
+
+        const albumLinkBtn = pin.albumUrl
+            ? `<a href="${pin.albumUrl}" target="_blank" rel="noopener noreferrer" class="ghost-btn" style="text-decoration:none; font-size:12px;">📂 Full Google Photos Album</a>`
+            : '';
 
         return `
             <article class="review-card">
@@ -232,13 +263,14 @@ function renderReviews() {
                     <span>${escapeHtml(pin.tag)}</span>
                     <span>BubScore: ${avgDisplay}</span>
                 </div>
-                ${photoHtml}
+                ${galleryHtml}
                 <h4 style="font-size: 18px; margin: 6px 0;">${escapeHtml(pin.title)}</h4>
                 <p style="color: #4a5568;">${escapeHtml(pin.review || pin.details)}</p>
                 <p style="font-size: 12.5px; font-weight: 700; margin-top: 8px; color: #2d3748;">
                     Nik: ${nikDisplay} • Lei: ${leiDisplay} • ${pin.liked ? '♥ Liked' : '♡'}
                 </p>
-                <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+                    ${albumLinkBtn}
                     <button type="button" class="ghost-btn edit-review-btn" data-id="${pin.id}">Edit adventure</button>
                 </div>
             </article>
@@ -260,25 +292,47 @@ function compressImage(file, callback) {
         const img = new Image();
         img.onload = () => {
             const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 600;
-            const scale = MAX_WIDTH / img.width;
+            const MAX_WIDTH = 550;
             canvas.width = Math.min(img.width, MAX_WIDTH);
-            canvas.height = Math.min(img.height * (canvas.width / img.width), 450);
+            canvas.height = Math.min(img.height * (canvas.width / img.width), 420);
 
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            callback(canvas.toDataURL('image/jpeg', 0.72));
+            callback(canvas.toDataURL('image/jpeg', 0.70));
         };
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
 }
 
-// --- Pin Modal & Independent Rating Logic ---
+// --- Modal Image Previews ---
+function renderModalPhotoPreviews() {
+    pinPhotoStatus.textContent = currentPinImages.length 
+        ? `${currentPinImages.length} thumbnail${currentPinImages.length > 1 ? 's' : ''} saved` 
+        : 'No thumbnails selected';
+
+    pinPhotoPreviewWrap.innerHTML = currentPinImages.map((src, index) => `
+        <div class="photo-thumb-container">
+            <img src="${src}" alt="Snapshot">
+            <button type="button" class="photo-delete-badge" data-index="${index}">&times;</button>
+        </div>
+    `).join('');
+
+    pinPhotoPreviewWrap.querySelectorAll('.photo-delete-badge').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const idx = Number(btn.dataset.index);
+            currentPinImages.splice(idx, 1);
+            renderModalPhotoPreviews();
+        });
+    });
+}
+
+// --- Pin Modal & Rating Logic ---
 const pinModal = document.getElementById('pin-modal');
 const pinTitleInput = document.getElementById('pin-title-input');
 const pinDetailsInput = document.getElementById('pin-details-input');
 const pinTypeInput = document.getElementById('pin-type-input');
+const pinAlbumUrlInput = document.getElementById('pin-album-url');
 const pinReviewInput = document.getElementById('pin-review-input');
 const pinPhotoInput = document.getElementById('pin-photo-input');
 const pinPhotoTriggerBtn = document.getElementById('pin-photo-trigger-btn');
@@ -296,13 +350,14 @@ const pinRemoveButton = document.getElementById('pin-remove-btn');
 pinPhotoTriggerBtn.addEventListener('click', () => pinPhotoInput.click());
 
 pinPhotoInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
 
-    pinPhotoStatus.textContent = file.name;
-    compressImage(file, (base64) => {
-        currentPinImageBase64 = base64;
-        pinPhotoPreviewWrap.innerHTML = `<div class="polaroid-preview-card"><img src="${base64}"></div>`;
+    files.forEach(file => {
+        compressImage(file, (base64) => {
+            currentPinImages.push(base64);
+            renderModalPhotoPreviews();
+        });
     });
 });
 
@@ -342,6 +397,7 @@ function openPinModal(pinId) {
     pinTitleInput.value = pin.title;
     pinDetailsInput.value = pin.details;
     pinTypeInput.value = pin.type;
+    pinAlbumUrlInput.value = pin.albumUrl || DEFAULT_ALBUM_URL;
     pinReviewInput.value = pin.review || '';
     
     pinNikRatingValue.dataset.original = pin.nikScore !== null ? String(pin.nikScore) : 'null';
@@ -353,9 +409,8 @@ function openPinModal(pinId) {
     pinNikRatingModified = false;
     pinLeiRatingModified = false;
 
-    currentPinImageBase64 = pin.image || null;
-    pinPhotoStatus.textContent = pin.image ? 'Photo attached' : 'No photo selected';
-    pinPhotoPreviewWrap.innerHTML = pin.image ? `<div class="polaroid-preview-card"><img src="${pin.image}"></div>` : '';
+    currentPinImages = pin.images ? [...pin.images] : (pin.image ? [pin.image] : []);
+    renderModalPhotoPreviews();
 
     pinLikeButton.dataset.liked = pin.liked ? 'true' : 'false';
     pinLikeButton.textContent = pin.liked ? '♥ Favorited' : '♡ Favorite';
@@ -367,7 +422,7 @@ function openPinModal(pinId) {
 function closePinModal() {
     pinModal.classList.add('hidden');
     activePinId = null;
-    currentPinImageBase64 = null;
+    currentPinImages = [];
     pinPhotoInput.value = '';
 }
 
@@ -390,9 +445,10 @@ pinForm.addEventListener('submit', (e) => {
     pin.title = pinTitleInput.value.trim();
     pin.details = pinDetailsInput.value.trim();
     pin.type = pinTypeInput.value;
+    pin.albumUrl = pinAlbumUrlInput.value.trim() || DEFAULT_ALBUM_URL;
     pin.tag = pin.type === 'memory' ? 'Latest Memory' : (pin.type === 'event' ? 'Upcoming Event' : 'Next Wishlist Item');
     pin.review = pinReviewInput.value.trim();
-    pin.image = currentPinImageBase64 || pin.image;
+    pin.images = currentPinImages;
 
     if (pinNikRatingModified) {
         pin.nikScore = Number(pinNikRatingInput.value);
@@ -410,7 +466,7 @@ pinForm.addEventListener('submit', (e) => {
     }
 
     pin.liked = pinLikeButton.dataset.liked === 'true';
-    if (pin.review || pin.image || pin.rating !== null || pin.type === 'memory') {
+    if (pin.review || (pin.images && pin.images.length) || pin.rating !== null || pin.type === 'memory') {
         pin.completed = true;
     }
 
@@ -446,6 +502,7 @@ const addPinForm = document.getElementById('add-pin-form');
 const newPinTitle = document.getElementById('new-pin-title');
 const newPinDetails = document.getElementById('new-pin-details');
 const newPinType = document.getElementById('new-pin-type');
+const newPinAlbum = document.getElementById('new-pin-album');
 
 document.getElementById('add-pin-btn').addEventListener('click', () => addPinModal.classList.remove('hidden'));
 document.getElementById('add-pin-modal-close').addEventListener('click', () => addPinModal.classList.add('hidden'));
@@ -457,17 +514,19 @@ addPinForm.addEventListener('submit', (e) => {
     const title = newPinTitle.value.trim();
     const details = newPinDetails.value.trim();
     const type = newPinType.value;
+    const albumUrl = (newPinAlbum?.value || '').trim() || DEFAULT_ALBUM_URL;
     if (!title || !details) return;
 
     pinBoardEntries.unshift({
         id: `pin-${Date.now()}`,
         title,
         details,
+        albumUrl,
         tag: type === 'memory' ? 'Latest Memory' : (type === 'event' ? 'Upcoming Event' : 'Next Wishlist Item'),
         type,
         completed: type === 'memory',
         review: '',
-        image: '',
+        images: [],
         nikScore: null,
         leiScore: null,
         rating: null,
