@@ -81,6 +81,7 @@
             </div>
 
             <div id="reviews-page" class="page-content hidden">
+<<<<<<< HEAD
                 <h2>BubAdventure Reviews &amp; Memory Wall</h2>
                 <p style="color: #718096; margin-bottom: 20px;">Vibes, General Whimsy, and Snapshots</p>
 
@@ -89,25 +90,52 @@
         </main>
 
         <!-- Edit Pin / Adventure Modal with Image Upload -->
+=======
+                <h2>BubAdventure Reviews</h2>
+                <p style="color: #718096; margin-bottom: 20px;">Adventure rating based on Vibes, General Whimsy (Nikeel you gotta do this one oki)</p>
+
+                <div id="review-list" class="review-list"></div>
+
+                <div id="review-calculator-preview" class="bubble" style="margin-top: 20px;">
+                    <h4>Score Calculator Testing:</h4>
+                    <p id="average-display">Waiting for da scores :/</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Edit Pin Modal -->
+>>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
         <div id="pin-modal" class="pin-modal hidden" aria-modal="true" role="dialog" aria-labelledby="pin-modal-title">
             <div class="pin-modal-backdrop" data-close="true"></div>
             <div class="pin-modal-panel">
                 <button id="pin-modal-close" class="pin-modal-close" type="button" aria-label="Close">×</button>
                 <h3 id="pin-modal-title">Edit BubAdventure Pin</h3>
+<<<<<<< HEAD
                 <p id="pin-modal-detail" class="pin-modal-detail"></p>
 
                 <form id="pin-form" class="pin-form">
                     <label class="field">
                         <span>Title</span>
+=======
+                
+                <form id="pin-form" class="pin-form">
+                    <label class="field">
+                        <span>Adventure Title</span>
+>>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
                         <input type="text" id="pin-title-input" required>
                     </label>
 
                     <label class="field">
+<<<<<<< HEAD
                         <span>Details / Notes</span>
+=======
+                        <span>Details / Subtext</span>
+>>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
                         <input type="text" id="pin-details-input" required>
                     </label>
 
                     <label class="field">
+<<<<<<< HEAD
                         <span>Tag / Category</span>
                         <select id="pin-type-input">
                             <option value="next-up">Wishlist Item</option>
@@ -147,6 +175,49 @@
                                 <span id="pin-lei-rating-value" class="slider-value">—</span>
                             </div>
                         </label>
+=======
+                        <span>Category / Tag</span>
+                        <select id="pin-type-input">
+                            <option value="next-up">Wishlist (Next Up)</option>
+                            <option value="event">Upcoming Event</option>
+                            <option value="memory">Past Memory</option>
+                        </select>
+                    </label>
+
+                    <label class="field toggle-field">
+                        <div class="checkbox-row">
+                            <input type="checkbox" id="pin-completed-input">
+                            <span>Mark as Completed BubAdventure 🎈</span>
+                        </div>
+                    </label>
+
+                    <label class="field">
+                        <span>Review & Thoughts</span>
+                        <textarea id="pin-review-input" rows="3" placeholder="Tell us how it felt..."></textarea>
+                    </label>
+
+                    <label class="field">
+                        <span>Nik's score</span>
+                        <div class="slider-row pin-rating-row">
+                            <input id="pin-nik-rating-input" type="range" min="0" max="10" step="0.1" value="5.0">
+                            <span id="pin-nik-rating-value" class="slider-value">5.0</span>
+                        </div>
+                    </label>
+
+                    <label class="field">
+                        <span>Lei's score</span>
+                        <div class="slider-row pin-rating-row">
+                            <input id="pin-lei-rating-input" type="range" min="0" max="10" step="0.1" value="5.0">
+                            <span id="pin-lei-rating-value" class="slider-value">5.0</span>
+                        </div>
+                    </label>
+
+                    <p id="pin-aggregate-score" class="pin-aggregate-score">BubScore: 5.00/10.00</p>
+
+                    <div class="pin-modal-actions">
+                        <button type="button" id="pin-like-btn" class="ghost-btn">♡ Like it</button>
+                        <button type="submit" class="save-btn">Save changes</button>
+>>>>>>> 9270fca7ea0dcbb299a1a28b53f3dd64b187b50d
                     </div>
 
                     <p id="pin-aggregate-score" class="pin-aggregate-score">BubScore: — / 10.0</p>
