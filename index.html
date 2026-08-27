@@ -23,7 +23,7 @@
 
         <nav class="page-nav animate-fade-in-delayed">
             <button class="nav-btn active">The Full List</button>
-            <button class="nav-btn">BubReviews</button>
+            <button class="nav-btn">BubReviews &amp; Gallery</button>
         </nav>
 
         <main class="main-content animate-fade-in-delayed">
@@ -35,36 +35,43 @@
                             <span>Activity name</span>
                             <input type="text" id="activity-name" placeholder="e.g. Mini golf" required>
                         </label>
-                        <label class="field">
-                            <span>Date</span>
-                            <input type="date" id="activity-date" required>
-                        </label>
-                        <label class="field">
-                            <span>Time</span>
-                            <input type="time" id="activity-time" required>
-                        </label>
+                        <div class="row-2col">
+                            <label class="field">
+                                <span>Date</span>
+                                <input type="date" id="activity-date" required>
+                            </label>
+                            <label class="field">
+                                <span>Time</span>
+                                <input type="time" id="activity-time" required>
+                            </label>
+                        </div>
                         <button type="submit" class="save-btn">Save activity</button>
                     </form>
 
+                    <!-- Safe Split Score Completion Form -->
                     <form id="completion-form" class="bubble completion-form hidden">
                         <h3 id="completion-title">Mission Complete</h3>
-                        <p class="helper-text">Slide to set HalfBubScore and save it :]</p>
-                        <label class="field">
-                            <span>Nik's score</span>
-                            <div class="slider-row">
-                                <input type="range" id="nik-score" min="0" max="10" step="0.1" value="10">
-                                <span class="slider-value" id="nik-score-value">5.0</span>
-                            </div>
-                        </label>
-                        <label class="field">
-                            <span>Lei's score</span>
-                            <div class="slider-row">
-                                <input type="range" id="lei-score" min="0" max="10" step="0.1" value="5">
-                                <span class="slider-value" id="lei-score-value">5.0</span>
-                            </div>
-                        </label>
+                        <p class="helper-text">Rate your half of the adventure score independently :)</p>
+                        
+                        <div class="partner-score-block">
+                            <label class="field">
+                                <span>Nik's Score</span>
+                                <div class="slider-row">
+                                    <input type="range" id="nik-score" min="0" max="10" step="0.1" value="5.0">
+                                    <span class="slider-value" id="nik-score-value">—</span>
+                                </div>
+                            </label>
+                            <label class="field">
+                                <span>Lei's Score</span>
+                                <div class="slider-row">
+                                    <input type="range" id="lei-score" min="0" max="10" step="0.1" value="5.0">
+                                    <span class="slider-value" id="lei-score-value">—</span>
+                                </div>
+                            </label>
+                        </div>
+
                         <div class="form-actions">
-                            <button type="button" id="save-completion" class="save-btn">Save score</button>
+                            <button type="button" id="save-completion" class="save-btn">Save Score</button>
                             <button type="button" id="cancel-completion" class="ghost-btn">Cancel</button>
                         </div>
                     </form>
@@ -74,60 +81,87 @@
             </div>
 
             <div id="reviews-page" class="page-content hidden">
-                <h2>BubAventure Reviews</h2>
-                <p style="color: #718096; margin-bottom:  20px;">Adventure rating based on Vibes, General Whimsy (Nikeel you gotta do this one oki)</p>
+                <h2>BubAdventure Reviews &amp; Memory Wall</h2>
+                <p style="color: #718096; margin-bottom: 20px;">Vibes, General Whimsy, and Snapshots</p>
 
                 <div id="review-list" class="review-list"></div>
-
-                <div id="review-calculator-preview" class="bubble" style="margin-top: 20px;">
-                    <h4>Score Calculator Testin:</h4>
-                    <p id="average-display">Waiting for da scores :/</p>
-                </div>
             </div>
-
         </main>
 
+        <!-- Edit Pin / Adventure Modal with Image Upload -->
         <div id="pin-modal" class="pin-modal hidden" aria-modal="true" role="dialog" aria-labelledby="pin-modal-title">
             <div class="pin-modal-backdrop" data-close="true"></div>
             <div class="pin-modal-panel">
                 <button id="pin-modal-close" class="pin-modal-close" type="button" aria-label="Close">×</button>
-                <h3 id="pin-modal-title">Adventure pin</h3>
+                <h3 id="pin-modal-title">Edit BubAdventure Pin</h3>
                 <p id="pin-modal-detail" class="pin-modal-detail"></p>
 
                 <form id="pin-form" class="pin-form">
                     <label class="field">
+                        <span>Title</span>
+                        <input type="text" id="pin-title-input" required>
+                    </label>
+
+                    <label class="field">
+                        <span>Details / Notes</span>
+                        <input type="text" id="pin-details-input" required>
+                    </label>
+
+                    <label class="field">
+                        <span>Tag / Category</span>
+                        <select id="pin-type-input">
+                            <option value="next-up">Wishlist Item</option>
+                            <option value="event">Upcoming Event</option>
+                            <option value="memory">Past Memory Vault</option>
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span>Memory Snapshot (Photo)</span>
+                        <div class="photo-upload-container">
+                            <input type="file" id="pin-photo-input" accept="image/*" class="file-input-hidden">
+                            <button type="button" id="pin-photo-trigger-btn" class="ghost-btn photo-trigger-btn">📸 Choose Photo</button>
+                            <span id="pin-photo-status" class="photo-status">No photo selected</span>
+                        </div>
+                        <div id="pin-photo-preview-wrap" class="photo-preview-wrap"></div>
+                    </label>
+
+                    <label class="field">
                         <span>Review</span>
-                        <textarea id="pin-review-input" rows="4" placeholder="Tell us how it felt..."></textarea>
+                        <textarea id="pin-review-input" rows="3" placeholder="Tell us how it felt..."></textarea>
                     </label>
 
-                    <label class="field">
-                        <span>Nik's score</span>
-                        <div class="slider-row pin-rating-row">
-                            <input id="pin-nik-rating-input" type="range" min="0" max="10" step="0.1" value="4.10">
-                            <span id="pin-nik-rating-value" class="slider-value">4.10</span>
-                        </div>
-                    </label>
+                    <div class="partner-score-block">
+                        <label class="field">
+                            <span>Nik's Score</span>
+                            <div class="slider-row pin-rating-row">
+                                <input id="pin-nik-rating-input" type="range" min="0" max="10" step="0.1" value="5.0">
+                                <span id="pin-nik-rating-value" class="slider-value">—</span>
+                            </div>
+                        </label>
 
-                    <label class="field">
-                        <span>Lei's score</span>
-                        <div class="slider-row pin-rating-row">
-                            <input id="pin-lei-rating-input" type="range" min="0" max="10" step="0.1" value="10.0">
-                            <span id="pin-lei-rating-value" class="slider-value">10.0</span>
-                        </div>
-                    </label>
-
-                    <p id="pin-aggregate-score" class="pin-aggregate-score">BubScore: 4.10/10.00</p>
-
-                    <div class="pin-modal-actions">
-                        <button type="button" id="pin-like-btn" class="ghost-btn">♡ Like it</button>
-                        <button type="submit" class="save-btn">Save review</button>
+                        <label class="field">
+                            <span>Lei's Score</span>
+                            <div class="slider-row pin-rating-row">
+                                <input id="pin-lei-rating-input" type="range" min="0" max="10" step="0.1" value="5.0">
+                                <span id="pin-lei-rating-value" class="slider-value">—</span>
+                            </div>
+                        </label>
                     </div>
 
-                    <button type="button" id="pin-remove-btn" class="ghost-btn delete-btn pin-remove-btn">Remove pin</button>
+                    <p id="pin-aggregate-score" class="pin-aggregate-score">BubScore: — / 10.0</p>
+
+                    <div class="pin-modal-actions">
+                        <button type="button" id="pin-like-btn" class="ghost-btn">♡ Favorite</button>
+                        <button type="submit" class="save-btn">Save Changes</button>
+                    </div>
+
+                    <button type="button" id="pin-remove-btn" class="ghost-btn delete-btn pin-remove-btn">Remove Pin</button>
                 </form>
             </div>
         </div>
 
+        <!-- Add Pin Modal -->
         <div id="add-pin-modal" class="pin-modal hidden" aria-modal="true" role="dialog" aria-labelledby="add-pin-modal-title">
             <div class="pin-modal-backdrop" data-close-add="true"></div>
             <div class="pin-modal-panel">
@@ -144,6 +178,15 @@
                         <input id="new-pin-details" type="text" placeholder="e.g. Next weekend" required>
                     </label>
 
+                    <label class="field">
+                        <span>Category</span>
+                        <select id="new-pin-type">
+                            <option value="next-up">Wishlist Item</option>
+                            <option value="event">Upcoming Event</option>
+                            <option value="memory">Past Memory</option>
+                        </select>
+                    </label>
+
                     <div class="pin-modal-actions">
                         <button type="button" id="add-pin-cancel" class="ghost-btn">Cancel</button>
                         <button type="submit" class="save-btn">Add pin</button>
@@ -154,11 +197,8 @@
 
         <div id="confetti-layer" class="confetti-layer" aria-hidden="true"></div>
 
-        <!-- Firebase Core App SDK -->
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-        <!-- Firebase Realtime Database SDK -->
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-
         <script src="script.js"></script>
     </div>
 </body>

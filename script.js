@@ -1,5 +1,4 @@
-// NAVIGATION
-
+// --- Elements ---
 const navButtons = document.querySelectorAll('.nav-btn');
 const listPage = document.getElementById('list-page');
 const reviewsPage = document.getElementById('reviews-page');
@@ -8,6 +7,8 @@ const activityList = document.getElementById('activity-list');
 const activityNameInput = document.getElementById('activity-name');
 const activityDateInput = document.getElementById('activity-date');
 const activityTimeInput = document.getElementById('activity-time');
+
+// Completion form sliders & tracking
 const completionForm = document.getElementById('completion-form');
 const completionTitle = document.getElementById('completion-title');
 const nikScoreInput = document.getElementById('nik-score');
@@ -17,13 +18,16 @@ const leiScoreValue = document.getElementById('lei-score-value');
 const saveCompletionButton = document.getElementById('save-completion');
 const cancelCompletionButton = document.getElementById('cancel-completion');
 
+let nikScoreModified = false;
+let leiScoreModified = false;
+
 const STORAGE_KEY = 'bubweb-activities';
+const PIN_STORAGE_KEY = 'bubweb-pin-board';
+
 let activities = loadActivities();
 let activeActivityId = null;
-let nikScoreTouched = false;
-let leiScoreTouched = false;
 
-// --- Firebase realtime sync setup
+// Firebase Setup[cite: 3]
 const firebaseConfig = {
     apiKey: "AIzaSyBxkrNYSVqVf2_7wyHl6sA7i6MQ_OY69cg",
     authDomain: "guide-to-the-outside.firebaseapp.com",
@@ -42,351 +46,215 @@ const activitiesRef = db.ref('activities');
 let isApplyingRemotePins = false;
 let isApplyingRemoteActivities = false;
 
+const DEFAULT_PIN_BOARD = [
+    {
+        id: 'wishlist',
+        title: 'Hike & Picnic!',
+        details: 'Next weekend in the mountains',
+        tag: 'Next Wishlist Item',
+        type: 'next-up',
+        completed: false,
+        review: '',
+        image: '',
+        nikScore: null,
+        leiScore: null,
+        rating: null,
+        liked: false
+    }
+];
+
+let pinBoardEntries = loadPins();
+let activePinId = null;
+let currentPinImageBase64 = null;
+let pinNikRatingModified = false;
+let pinLeiRatingModified = false;
+
+function normalizePin(pin) {
+    const nik = pin?.nikScore !== undefined && pin?.nikScore !== null ? Number(pin.nikScore) : null;
+    const lei = pin?.leiScore !== undefined && pin?.leiScore !== null ? Number(pin.leiScore) : null;
+    
+    let computedRating = null;
+    if (nik !== null && lei !== null) {
+        computedRating = Number(((nik + lei) / 2).toFixed(1));
+    } else if (nik !== null) {
+        computedRating = nik;
+    } else if (lei !== null) {
+        computedRating = lei;
+    }
+
+    return {
+        id: pin.id || `pin-${Date.now()}`,
+        title: pin.title || 'Untitled Adventure',
+        details: pin.details || '',
+        tag: pin.tag || 'Adventure Pin',
+        type: pin.type || 'next-up',
+        completed: !!pin.completed,
+        review: pin.review || '',
+        image: pin.image || '',
+        nikScore: nik,
+        leiScore: lei,
+        rating: computedRating,
+        liked: !!pin.liked
+    };
+}
+
 function loadActivities() {
-    const savedActivities = localStorage.getItem(STORAGE_KEY);
-
-    if (!savedActivities) {
-        return [];
-    }
-
     try {
-        return JSON.parse(savedActivities);
-    } catch (error) {
-        console.warn('Could not load activities', error);
-        return [];
-    }
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) { return []; }
 }
 
 function saveActivities() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
-    if (!isApplyingRemoteActivities) {
-        activitiesRef.set(activities).catch(err => console.warn('Firebase activities set error', err));
+    if (!isApplyingRemoteActivities) activitiesRef.set(activities);
+}
+
+function loadPins() {
+    try {
+        const saved = localStorage.getItem(PIN_STORAGE_KEY);
+        const parsed = saved ? JSON.parse(saved) : DEFAULT_PIN_BOARD;
+        return (Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_PIN_BOARD).map(normalizePin);
+    } catch (e) {
+        return DEFAULT_PIN_BOARD.map(normalizePin);
     }
+}
+
+function savePins() {
+    localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinBoardEntries));
+    if (!isApplyingRemotePins) pinsRef.set(pinBoardEntries);
 }
 
 function escapeHtml(value) {
-    return String(value)
+    return String(value || '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+        .replace(/"/g, '&quot;');
 }
 
-function getStatusDetails(activity) {
-    if (activity.completed) {
-        return { label: 'Completed', className: 'status-completed' };
-    }
+function launchConfettiBurst() {
+    const layer = document.getElementById('confetti-layer');
+    if (!layer) return;
+    const colors = ['#fbbf24', '#34d399', '#60a5fa', '#f472b6', '#f87171', '#a78bfa'];
 
-    if (activity.nikScore !== null || activity.leiScore !== null) {
-        return { label: 'Partly rated', className: 'status-partial' };
+    for (let i = 0; i < 30; i++) {
+        const piece = document.createElement('span');
+        const size = 8 + Math.random() * 8;
+        piece.className = 'confetti-piece';
+        piece.style.left = `${Math.random() * 100}%`;
+        piece.style.width = `${size}px`;
+        piece.style.height = `${size * 1.5}px`;
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.setProperty('--drift', `${(Math.random() - 0.5) * 200}px`);
+        piece.style.setProperty('--rotation', `${Math.random() * 360}deg`);
+        layer.appendChild(piece);
+        setTimeout(() => piece.remove(), 2000);
     }
-
-    return { label: 'Planned', className: 'status-planned' };
 }
 
-function formatScore(value) {
-    return value === null || value === undefined ? '—' : Number(value).toFixed(1);
-}
+// --- Render Pin Board with Polaroids ---
+const pinBoard = document.getElementById('pin-board');
 
-function renderActivities() {
-    if (!activityList) {
-        return;
-    }
+function renderPins() {
+    if (!pinBoard) return;
 
-    if (!activities.length) {
-        activityList.innerHTML = '<p class="empty-state">We are two bubs in a pod...</p>';
-        return;
-    }
+    pinBoard.innerHTML = pinBoardEntries.map(pin => {
+        const photoPreview = pin.image 
+            ? `<div class="polaroid-preview-card"><img src="${pin.image}" alt="Memory photo"></div>` 
+            : '';
 
-    activityList.innerHTML = activities.map(activity => {
-        const activityDate = activity.date ? new Date(`${activity.date}T${activity.time || '00:00'}`) : null;
-        const formattedDate = activityDate
-            ? activityDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
-            : 'Date TBD';
-        const formattedTime = activity.time || 'Time TBD';
-        const status = getStatusDetails(activity);
-        const scoreText = activity.finalScore !== null && activity.finalScore !== undefined
-            ? `BubScore: ${Number(activity.finalScore).toFixed(2)}/10`
-            : 'No BubScore yet ';
+        const scoreText = pin.rating !== null 
+            ? `★ ${pin.rating.toFixed(1)}/10` 
+            : 'Unrated';
 
         return `
-            <article class="bubble activity-card">
-                <div>
-                    <h4>${escapeHtml(activity.name)}</h4>
-                    <p>${formattedDate}</p>
-                    <p>${formattedTime}</p>
-                    <div class="score-summary">
-                        <div><strong>Nik:</strong> ${formatScore(activity.nikScore)} / 10</div>
-                        <div><strong>Lei:</strong> ${formatScore(activity.leiScore)} / 10</div>
-                        <div>${scoreText}</div>
-                    </div>
+            <div class="pin-card post-it ${pin.type}" data-id="${pin.id}" tabindex="0">
+                <div class="pin-head">📌</div>
+                <span class="bubble-tag">${escapeHtml(pin.tag)}</span>
+                ${photoPreview}
+                <h3>${escapeHtml(pin.title)}</h3>
+                <p>${escapeHtml(pin.details)}</p>
+                <div class="pin-meta">
+                    <span>${pin.liked ? '♥ Favorited' : '♡'}</span>
+                    <span>${scoreText}</span>
+                    <span>${pin.completed ? '✓ Done' : 'Planned'}</span>
                 </div>
-                <div class="activity-actions">
-                    <span class="status-chip ${status.className}">${status.label}</span>
-                    <button type="button" class="save-btn complete-btn" data-id="${activity.id}">${activity.completed ? 'Edit score' : 'Complete & score'}</button>
-                    <button type="button" class="ghost-btn delete-btn" data-id="${activity.id}">Delete</button>
+            </div>
+        `;
+    }).join('');
+
+    pinBoard.querySelectorAll('.pin-card').forEach(card => {
+        card.addEventListener('click', () => openPinModal(card.dataset.id));
+    });
+}
+
+// --- Render Reviews Wall ---
+const reviewList = document.getElementById('review-list');
+
+function renderReviews() {
+    if (!reviewList) return;
+    const completed = pinBoardEntries.filter(p => p.completed || p.review || p.image);
+
+    if (!completed.length) {
+        reviewList.innerHTML = '<p class="empty-state">No reviewed adventures in the vault yet.</p>';
+        return;
+    }
+
+    reviewList.innerHTML = completed.map(pin => {
+        const photoHtml = pin.image ? `<div class="polaroid-preview-card"><img src="${pin.image}" alt="${escapeHtml(pin.title)}"></div>` : '';
+        const nikDisplay = pin.nikScore !== null ? `${pin.nikScore.toFixed(1)}/10` : '—';
+        const leiDisplay = pin.leiScore !== null ? `${pin.leiScore.toFixed(1)}/10` : '—';
+        const avgDisplay = pin.rating !== null ? `${pin.rating.toFixed(1)}/10` : '—';
+
+        return `
+            <article class="review-card">
+                <div class="review-meta">
+                    <span>${escapeHtml(pin.tag)}</span>
+                    <span>BubScore: ${avgDisplay}</span>
                 </div>
+                ${photoHtml}
+                <h4 style="font-size: 18px; margin: 6px 0;">${escapeHtml(pin.title)}</h4>
+                <p style="color: #4a5568;">${escapeHtml(pin.review || pin.details)}</p>
+                <p style="font-size: 12.5px; font-weight: 700; margin-top: 8px; color: #2d3748;">
+                    Nik: ${nikDisplay} • Lei: ${leiDisplay} • ${pin.liked ? '♥ Liked' : '♡'}
+                </p>
             </article>
         `;
     }).join('');
 }
 
-function updateSliderLabels() {
-    if (nikScoreValue && nikScoreInput) {
-        nikScoreValue.textContent = Number(nikScoreInput.value).toFixed(1);
-    }
+// --- Image Compression Helper ---
+function compressImage(file, callback) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 600;
+            const scale = MAX_WIDTH / img.width;
+            canvas.width = Math.min(img.width, MAX_WIDTH);
+            canvas.height = Math.min(img.height * (canvas.width / img.width), 450);
 
-    if (leiScoreValue && leiScoreInput) {
-        leiScoreValue.textContent = Number(leiScoreInput.value).toFixed(1);
-    }
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            callback(canvas.toDataURL('image/jpeg', 0.72));
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
 }
 
-function resetCompletionForm() {
-    if (!completionForm) {
-        return;
-    }
-
-    completionForm.classList.add('hidden');
-    completionTitle.textContent = 'Mission Complete';
-    nikScoreInput.value = '5';
-    leiScoreInput.value = '5';
-    updateSliderLabels();
-    nikScoreTouched = false;
-    leiScoreTouched = false;
-    activeActivityId = null;
-}
-
-function setupActivityManager() {
-    if (!activityForm || !activityNameInput || !activityDateInput || !activityTimeInput) {
-        return;
-    }
-
-    activityDateInput.value = new Date().toISOString().split('T')[0];
-    activityTimeInput.value = '19:00';
-
-    if (nikScoreInput && leiScoreInput) {
-        nikScoreInput.addEventListener('input', () => {
-            nikScoreTouched = true;
-            updateSliderLabels();
-        });
-        leiScoreInput.addEventListener('input', () => {
-            leiScoreTouched = true;
-            updateSliderLabels();
-        });
-    }
-
-    updateSliderLabels();
-
-    activityForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-
-        const name = activityNameInput.value.trim();
-        const date = activityDateInput.value;
-        const time = activityTimeInput.value;
-
-        if (!name || !date || !time) {
-            return;
-        }
-
-        activities.unshift({
-            id: Date.now(),
-            name,
-            date,
-            time,
-            completed: false,
-            nikScore: null,
-            leiScore: null,
-            finalScore: null
-        });
-
-        saveActivities();
-        renderActivities();
-
-        activityForm.reset();
-        activityDateInput.value = new Date().toISOString().split('T')[0];
-        activityTimeInput.value = '19:00';
-        activityNameInput.focus();
-    });
-
-    activityList.addEventListener('click', (event) => {
-        const completeButton = event.target.closest('.complete-btn');
-        const deleteButton = event.target.closest('.delete-btn');
-
-        if (completeButton) {
-            const activity = activities.find(item => item.id === Number(completeButton.dataset.id));
-
-            if (!activity) {
-                return;
-            }
-
-            activeActivityId = activity.id;
-            completionTitle.textContent = `Complete & score: ${activity.name}`;
-            nikScoreInput.value = activity.nikScore !== null && activity.nikScore !== undefined ? activity.nikScore.toString() : '5';
-            leiScoreInput.value = activity.leiScore !== null && activity.leiScore !== undefined ? activity.leiScore.toString() : '5';
-            updateSliderLabels();
-            nikScoreTouched = false;
-            leiScoreTouched = false;
-            completionForm.classList.remove('hidden');
-            nikScoreInput.focus();
-            return;
-        }
-
-        if (deleteButton) {
-            const activityId = Number(deleteButton.dataset.id);
-            const activity = activities.find(item => item.id === activityId);
-
-            if (!activity) {
-                return;
-            }
-
-            const confirmed = window.confirm(`Delete "${activity.name}"?`);
-
-            if (!confirmed) {
-                return;
-            }
-
-            activities = activities.filter(item => item.id !== activityId);
-            saveActivities();
-            renderActivities();
-        }
-    });
-
-    if (saveCompletionButton) {
-        saveCompletionButton.addEventListener('click', () => {
-            if (activeActivityId === null) {
-                return;
-            }
-
-            const activity = activities.find(item => item.id === activeActivityId);
-
-            if (!activity) {
-                return;
-            }
-
-            const nikScore = Number(nikScoreInput.value);
-            const leiScore = Number(leiScoreInput.value);
-            const nextNikScore = nikScoreTouched ? Number(nikScore.toFixed(1)) : (activity.nikScore !== null && activity.nikScore !== undefined ? Number(activity.nikScore) : null);
-            const nextLeiScore = leiScoreTouched ? Number(leiScore.toFixed(1)) : (activity.leiScore !== null && activity.leiScore !== undefined ? Number(activity.leiScore) : null);
-            const submittedScores = [nextNikScore, nextLeiScore].filter(score => score !== null && !Number.isNaN(score));
-
-            if (!submittedScores.length) {
-                return;
-            }
-
-            const averageScore = submittedScores.length === 1
-                ? submittedScores[0]
-                : submittedScores.reduce((sum, score) => sum + score, 0) / submittedScores.length;
-
-            activity.completed = true;
-            activity.nikScore = nextNikScore;
-            activity.leiScore = nextLeiScore;
-            activity.finalScore = Number(averageScore.toFixed(2));
-
-            saveActivities();
-            renderActivities();
-            resetCompletionForm();
-        });
-    }
-
-    if (cancelCompletionButton) {
-        cancelCompletionButton.addEventListener('click', resetCompletionForm);
-    }
-
-    renderActivities();
-}
-
-//listen for clicks 
-navButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        navButtons.forEach(btn => btn.classList.remove('active'));
-        button.classList.add('active');
-
-        if (button.textContent.toLowerCase().includes('list')){
-            listPage.classList.remove('hidden');
-            reviewsPage.classList.add('hidden');
-        } else {
-            reviewsPage.classList.remove('hidden');
-            listPage.classList.add('hidden');
-
-            runScoreTest();
-        }
-    });
-});
-
-//CALCULATOR
-function calculateAdventureScore(nikScore, leiScore) {
-    let totalScore = 0;
-    let totalCategories = nikScore.length +  leiScore.length;
-
-    nikScore.forEach(score => totalScore += score);
-    leiScore.forEach(score => totalScore += score);
-
-    let finalAvg = totalScore/totalCategories;
-
-    return finalAvg.toFixed(2);
-}
-
-//test example
-function runScoreTest() {
-    const nikScore = [8,9,9];
-    const leiScore = [9, 8, 7];
-
-    const finalRating = calculateAdventureScore(nikScore, leiScore);
-
-    const displayElement = document.getElementById('average-display');
-    displayElement.innerHTML= `🌌 <strong>Planetarium Trip Shared Rating:</strong> ${finalRating} / 10`;
-}
-
-setupActivityManager();
-
-const PIN_STORAGE_KEY = 'bubweb-pin-board';
-const DEFAULT_PIN_BOARD = [
-    {
-        id: 'wishlist',
-        title: 'Hike!',
-        details: 'Next weekend',
-        summary: 'Next wishlist item',
-        tag: 'Next Wishlist Item',
-        type: 'next-up',
-        completed: false,
-        review: '',
-        rating: 0,
-        liked: false
-    },
-    {
-        id: 'event',
-        title: 'Spiderman',
-        details: 'Watching on FRIDAY',
-        summary: 'Upcoming event',
-        tag: 'Upcoming Event',
-        type: 'event',
-        completed: false,
-        review: '',
-        rating: 0,
-        liked: false
-    },
-    {
-        id: 'odyssey',
-        title: 'The Odyssey',
-        details: 'Ticked!',
-        summary: 'Latest memory',
-        tag: 'Latest Memory',
-        type: 'memory',
-        completed: true,
-        review: 'Ticked! Great visuals and atmosphere.',
-        rating: 4.5,
-        liked: true
-    }
-];
-
-const pinBoard = document.getElementById('pin-board');
-const addPinButton = document.getElementById('add-pin-btn');
+// --- Pin Modal & Independent Rating Logic ---
 const pinModal = document.getElementById('pin-modal');
-const pinModalClose = document.getElementById('pin-modal-close');
-const pinModalTitle = document.getElementById('pin-modal-title');
-const pinModalDetail = document.getElementById('pin-modal-detail');
+const pinTitleInput = document.getElementById('pin-title-input');
+const pinDetailsInput = document.getElementById('pin-details-input');
+const pinTypeInput = document.getElementById('pin-type-input');
 const pinReviewInput = document.getElementById('pin-review-input');
+const pinPhotoInput = document.getElementById('pin-photo-input');
+const pinPhotoTriggerBtn = document.getElementById('pin-photo-trigger-btn');
+const pinPhotoStatus = document.getElementById('pin-photo-status');
+const pinPhotoPreviewWrap = document.getElementById('pin-photo-preview-wrap');
 const pinNikRatingInput = document.getElementById('pin-nik-rating-input');
 const pinLeiRatingInput = document.getElementById('pin-lei-rating-input');
 const pinNikRatingValue = document.getElementById('pin-nik-rating-value');
@@ -395,448 +263,348 @@ const pinAggregateScore = document.getElementById('pin-aggregate-score');
 const pinLikeButton = document.getElementById('pin-like-btn');
 const pinForm = document.getElementById('pin-form');
 const pinRemoveButton = document.getElementById('pin-remove-btn');
-const reviewList = document.getElementById('review-list');
-const addPinModal = document.getElementById('add-pin-modal');
-const addPinForm = document.getElementById('add-pin-form');
-const newPinTitleInput = document.getElementById('new-pin-title');
-const newPinDetailsInput = document.getElementById('new-pin-details');
-const addPinModalClose = document.getElementById('add-pin-modal-close');
-const addPinCancelButton = document.getElementById('add-pin-cancel');
-const confettiLayer = document.getElementById('confetti-layer');
-let pinBoardEntries = loadPins();
-let activePinId = null;
 
-function normalizePin(pin) {
-    const legacyAverage = Number(pin?.rating ?? 0);
-    const nikScore = Number.isFinite(Number(pin?.nikScore)) ? Number(pin.nikScore) : legacyAverage;
-    const leiScore = Number.isFinite(Number(pin?.leiScore)) ? Number(pin.leiScore) : legacyAverage;
+pinPhotoTriggerBtn.addEventListener('click', () => pinPhotoInput.click());
 
-    return {
-        ...pin,
-        nikScore,
-        leiScore,
-        rating: Number(pin?.rating ?? ((nikScore + leiScore) / 2)).toFixed(2)
-    };
-}
+pinPhotoInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-function loadPins() {
-    const savedPins = localStorage.getItem(PIN_STORAGE_KEY);
-
-    if (!savedPins) {
-        return [...DEFAULT_PIN_BOARD].map(normalizePin);
-    }
-
-    try {
-        const parsed = JSON.parse(savedPins);
-        const pins = Array.isArray(parsed) && parsed.length ? parsed : [...DEFAULT_PIN_BOARD];
-        return pins.map(normalizePin);
-    } catch (error) {
-        console.warn('Could not load pins', error);
-        return [...DEFAULT_PIN_BOARD].map(normalizePin);
-    }
-}
-
-function savePins() {
-    localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinBoardEntries));
-    if (!isApplyingRemotePins) {
-        pinsRef.set(pinBoardEntries).catch(err => console.warn('Firebase pins set error', err));
-    }
-}
-
-function launchConfettiBurst() {
-    if (!confettiLayer) {
-        return;
-    }
-
-    const colors = ['#fbbf24', '#34d399', '#60a5fa', '#f472b6', '#f87171', '#a78bfa'];
-
-    for (let i = 0; i < 28; i += 1) {
-        const piece = document.createElement('span');
-        const size = 8 + Math.random() * 10;
-        const drift = (Math.random() - 0.5) * 220;
-        const rotation = (Math.random() * 360) + 90;
-
-        piece.className = 'confetti-piece';
-        piece.style.left = `${Math.random() * 100}%`;
-        piece.style.width = `${size}px`;
-        piece.style.height = `${size * 1.4}px`;
-        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-        piece.style.setProperty('--drift', `${drift}px`);
-        piece.style.setProperty('--rotation', `${rotation}deg`);
-        piece.style.animationDuration = `${1500 + Math.random() * 700}ms`;
-
-        confettiLayer.appendChild(piece);
-        window.setTimeout(() => piece.remove(), 2200);
-    }
-}
-
-function getPinAverageScore(nikScore, leiScore) {
-    const safeNik = Number(nikScore) || 0;
-    const safeLei = Number(leiScore) || 0;
-    return ((safeNik + safeLei) / 2).toFixed(2);
-}
-
-function updatePinRatingLabel() {
-    if (pinNikRatingInput && pinNikRatingValue) {
-        pinNikRatingValue.textContent = Number(pinNikRatingInput.value).toFixed(1);
-    }
-
-    if (pinLeiRatingInput && pinLeiRatingValue) {
-        pinLeiRatingValue.textContent = Number(pinLeiRatingInput.value).toFixed(1);
-    }
-
-    if (pinNikRatingInput && pinLeiRatingInput && pinAggregateScore) {
-        const average = getPinAverageScore(pinNikRatingInput.value, pinLeiRatingInput.value);
-        pinAggregateScore.textContent = `BubScore: ${average}/5.00`;
-    }
-}
-
-function renderPins() {
-    if (!pinBoard) {
-        return;
-    }
-
-    pinBoard.innerHTML = pinBoardEntries.map(pin => {
-        const reviewPill = pin.completed && pin.review
-            ? '<span class="pin-status">✓ reviewed</span>'
-            : '<span class="pin-status">fresh</span>';
-
-        return `
-            <div class="pin-card post-it ${pin.type} ${pin.completed ? 'done' : ''}" data-id="${pin.id}" tabindex="0" role="button" aria-label="Open ${escapeHtml(pin.title)} pin">
-                <div class="pin-head">📌</div>
-                <span class="bubble-tag">${escapeHtml(pin.tag)}</span>
-                <h3>${escapeHtml(pin.title)}</h3>
-                <p>${escapeHtml(pin.details)}</p>
-                <div class="pin-meta">
-                    <span>${pin.liked ? '♥ liked' : '♡ maybe'}</span>
-                    ${reviewPill}
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    pinBoard.querySelectorAll('.pin-card').forEach(card => {
-        card.addEventListener('click', () => {
-            const pinId = card.dataset.id;
-            openPinModal(pinId);
-        });
-
-        card.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                const pinId = card.dataset.id;
-                openPinModal(pinId);
-            }
-        });
+    pinPhotoStatus.textContent = file.name;
+    compressImage(file, (base64) => {
+        currentPinImageBase64 = base64;
+        pinPhotoPreviewWrap.innerHTML = `<div class="polaroid-preview-card"><img src="${base64}"></div>`;
     });
+});
+
+function updatePinScoreLabels() {
+    const nik = pinNikRatingModified ? Number(pinNikRatingInput.value) : (pinNikRatingValue.dataset.original !== 'null' ? Number(pinNikRatingValue.dataset.original) : null);
+    const lei = pinLeiRatingModified ? Number(pinLeiRatingInput.value) : (pinLeiRatingValue.dataset.original !== 'null' ? Number(pinLeiRatingValue.dataset.original) : null);
+
+    pinNikRatingValue.textContent = nik !== null ? nik.toFixed(1) : '— (Unset)';
+    pinLeiRatingValue.textContent = lei !== null ? lei.toFixed(1) : '— (Unset)';
+
+    if (nik !== null && lei !== null) {
+        pinAggregateScore.textContent = `BubScore: ${((nik + lei) / 2).toFixed(1)} / 10.0`;
+    } else if (nik !== null) {
+        pinAggregateScore.textContent = `BubScore: ${nik.toFixed(1)} / 10.0 (Only Nik rated)`;
+    } else if (lei !== null) {
+        pinAggregateScore.textContent = `BubScore: ${lei.toFixed(1)} / 10.0 (Only Lei rated)`;
+    } else {
+        pinAggregateScore.textContent = 'BubScore: — / 10.0';
+    }
 }
 
-function renderReviews() {
-    if (!reviewList) {
-        return;
-    }
+pinNikRatingInput.addEventListener('input', () => {
+    pinNikRatingModified = true;
+    updatePinScoreLabels();
+});
 
-    const completedPins = pinBoardEntries.filter(pin => pin.completed && (pin.review || pin.rating > 0 || pin.liked));
-
-    if (!completedPins.length) {
-        reviewList.innerHTML = '<p class="empty-state">No completed adventures in the review wall yet.</p>';
-        return;
-    }
-
-    reviewList.innerHTML = completedPins.map(pin => {
-        const average = getPinAverageScore(pin.nikScore ?? pin.rating ?? 0, pin.leiScore ?? pin.rating ?? 0);
-
-        return `
-            <article class="review-card">
-                <div class="review-meta">
-                    <span>${escapeHtml(pin.tag)}</span>
-                    <span>${average}★</span>
-                </div>
-                <h4>${escapeHtml(pin.title)}</h4>
-                <p>${escapeHtml(pin.review || pin.details)}</p>
-                <p>Nik ${Number(pin.nikScore ?? 0).toFixed(1)} • Lei ${Number(pin.leiScore ?? 0).toFixed(1)} • BubScore ${average}</p>
-                <p>${pin.liked ? '♥ Liked' : '♡ Not liked yet'} </p>
-                <div class="review-actions">
-                    <button type="button" class="ghost-btn edit-review-btn" data-id="${pin.id}">Edit review</button>
-                </div>
-            </article>
-        `;
-    }).join('');
-}
-
-function closePinModal() {
-    if (pinModal) {
-        pinModal.classList.add('hidden');
-    }
-    activePinId = null;
-}
+pinLeiRatingInput.addEventListener('input', () => {
+    pinLeiRatingModified = true;
+    updatePinScoreLabels();
+});
 
 function openPinModal(pinId) {
-    const pin = pinBoardEntries.find(item => item.id === pinId || item.id.toString() === pinId);
-
-    if (!pin || !pinModal || !pinModalTitle || !pinModalDetail || !pinReviewInput || !pinNikRatingInput || !pinLeiRatingInput) {
-        return;
-    }
+    const pin = pinBoardEntries.find(p => p.id === pinId);
+    if (!pin) return;
 
     activePinId = pin.id;
-    pinModalTitle.textContent = pin.title;
-    pinModalDetail.textContent = `${pin.details} • ${pin.summary}`;
+    pinTitleInput.value = pin.title;
+    pinDetailsInput.value = pin.details;
+    pinTypeInput.value = pin.type;
     pinReviewInput.value = pin.review || '';
+    
+    // Save previous states
+    pinNikRatingValue.dataset.original = pin.nikScore !== null ? String(pin.nikScore) : 'null';
+    pinLeiRatingValue.dataset.original = pin.leiScore !== null ? String(pin.leiScore) : 'null';
+    
+    pinNikRatingInput.value = pin.nikScore !== null ? pin.nikScore : 5.0;
+    pinLeiRatingInput.value = pin.leiScore !== null ? pin.leiScore : 5.0;
+    
+    pinNikRatingModified = false;
+    pinLeiRatingModified = false;
 
-    const nikScore = pin.nikScore ?? pin.rating ?? 4.5;
-    const leiScore = pin.leiScore ?? pin.rating ?? 5.0;
-    pinNikRatingInput.value = nikScore.toString();
-    pinLeiRatingInput.value = leiScore.toString();
-    updatePinRatingLabel();
+    currentPinImageBase64 = pin.image || null;
+    pinPhotoStatus.textContent = pin.image ? 'Photo attached' : 'No photo selected';
+    pinPhotoPreviewWrap.innerHTML = pin.image ? `<div class="polaroid-preview-card"><img src="${pin.image}"></div>` : '';
 
-    pinLikeButton.textContent = pin.liked ? '♥ Liked' : '♡ Like it';
     pinLikeButton.dataset.liked = pin.liked ? 'true' : 'false';
+    pinLikeButton.textContent = pin.liked ? '♥ Favorited' : '♡ Favorite';
+
+    updatePinScoreLabels();
     pinModal.classList.remove('hidden');
 }
 
-function openAddPinModal() {
-    if (!addPinModal) {
-        return;
-    }
-
-    addPinModal.classList.remove('hidden');
-    if (newPinTitleInput) {
-        newPinTitleInput.focus();
-    }
+function closePinModal() {
+    pinModal.classList.add('hidden');
+    activePinId = null;
+    currentPinImageBase64 = null;
+    pinPhotoInput.value = '';
 }
 
-function closeAddPinModal() {
-    if (!addPinModal) {
-        return;
+document.getElementById('pin-modal-close').addEventListener('click', closePinModal);
+document.querySelector('[data-close="true"]').addEventListener('click', closePinModal);
+
+pinLikeButton.addEventListener('click', () => {
+    const current = pinLikeButton.dataset.liked === 'true';
+    pinLikeButton.dataset.liked = String(!current);
+    pinLikeButton.textContent = !current ? '♥ Favorited' : '♡ Favorite';
+});
+
+pinForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const pin = pinBoardEntries.find(p => p.id === activePinId);
+    if (!pin) return;
+
+    pin.title = pinTitleInput.value.trim();
+    pin.details = pinDetailsInput.value.trim();
+    pin.type = pinTypeInput.value;
+    pin.tag = pin.type === 'memory' ? 'Latest Memory' : (pin.type === 'event' ? 'Upcoming Event' : 'Next Wishlist Item');
+    pin.review = pinReviewInput.value.trim();
+    pin.image = currentPinImageBase64 || pin.image;
+
+    // Preserve the other person's score if untouched
+    if (pinNikRatingModified) {
+        pin.nikScore = Number(pinNikRatingInput.value);
+    }
+    if (pinLeiRatingModified) {
+        pin.leiScore = Number(pinLeiRatingInput.value);
     }
 
-    addPinModal.classList.add('hidden');
-    if (addPinForm) {
-        addPinForm.reset();
-    }
-}
-
-function addNewPin(title, details) {
-    const cleanTitle = title.trim();
-    const cleanDetails = details.trim();
-
-    if (!cleanTitle || !cleanDetails) {
-        return;
+    if (pin.nikScore !== null && pin.leiScore !== null) {
+        pin.rating = Number(((pin.nikScore + pin.leiScore) / 2).toFixed(1));
+    } else if (pin.nikScore !== null) {
+        pin.rating = pin.nikScore;
+    } else if (pin.leiScore !== null) {
+        pin.rating = pin.leiScore;
     }
 
-    const typeOptions = ['next-up', 'event', 'memory'];
-    const tagOptions = ['Next Wishlist Item', 'Upcoming Event', 'Latest Memory'];
-    const randomIndex = Math.floor(Math.random() * typeOptions.length);
+    pin.liked = pinLikeButton.dataset.liked === 'true';
+    if (pin.review || pin.image || pin.rating !== null) {
+        pin.completed = true;
+    }
+
+    savePins();
+    renderPins();
+    renderReviews();
+    closePinModal();
+    launchConfettiBurst();
+});
+
+pinRemoveButton.addEventListener('click', () => {
+    if (!activePinId) return;
+    if (confirm('Remove this adventure from the pin board?')) {
+        pinBoardEntries = pinBoardEntries.filter(p => p.id !== activePinId);
+        savePins();
+        renderPins();
+        renderReviews();
+        closePinModal();
+    }
+});
+
+// --- Add Pin Modal ---
+const addPinModal = document.getElementById('add-pin-modal');
+const addPinForm = document.getElementById('add-pin-form');
+const newPinTitle = document.getElementById('new-pin-title');
+const newPinDetails = document.getElementById('new-pin-details');
+const newPinType = document.getElementById('new-pin-type');
+
+document.getElementById('add-pin-btn').addEventListener('click', () => addPinModal.classList.remove('hidden'));
+document.getElementById('add-pin-modal-close').addEventListener('click', () => addPinModal.classList.add('hidden'));
+document.getElementById('add-pin-cancel').addEventListener('click', () => addPinModal.classList.add('hidden'));
+document.querySelector('[data-close-add="true"]').addEventListener('click', () => addPinModal.classList.add('hidden'));
+
+addPinForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const title = newPinTitle.value.trim();
+    const details = newPinDetails.value.trim();
+    const type = newPinType.value;
+    if (!title || !details) return;
 
     pinBoardEntries.unshift({
         id: `pin-${Date.now()}`,
-        title: cleanTitle,
-        details: cleanDetails,
-        summary: 'A new adventure pin',
-        tag: tagOptions[randomIndex],
-        type: typeOptions[randomIndex],
-        completed: false,
+        title,
+        details,
+        tag: type === 'memory' ? 'Latest Memory' : (type === 'event' ? 'Upcoming Event' : 'Next Wishlist Item'),
+        type,
+        completed: type === 'memory',
         review: '',
-        rating: 0,
-        nikScore: 0,
-        leiScore: 0,
+        image: '',
+        nikScore: null,
+        leiScore: null,
+        rating: null,
         liked: false
     });
 
     savePins();
     renderPins();
     renderReviews();
+    addPinForm.reset();
+    addPinModal.classList.add('hidden');
+    launchConfettiBurst();
+});
+
+// --- Scheduled Activity Scoring Logic ---
+function updateActivitySliderLabels() {
+    nikScoreValue.textContent = nikScoreModified ? Number(nikScoreInput.value).toFixed(1) : (nikScoreValue.dataset.original !== 'null' ? Number(nikScoreValue.dataset.original).toFixed(1) : '—');
+    leiScoreValue.textContent = leiScoreModified ? Number(leiScoreInput.value).toFixed(1) : (leiScoreValue.dataset.original !== 'null' ? Number(leiScoreValue.dataset.original).toFixed(1) : '—');
 }
 
-if (addPinButton) {
-    addPinButton.addEventListener('click', openAddPinModal);
+nikScoreInput.addEventListener('input', () => {
+    nikScoreModified = true;
+    updateActivitySliderLabels();
+});
+
+leiScoreInput.addEventListener('input', () => {
+    leiScoreModified = true;
+    updateActivitySliderLabels();
+});
+
+function renderActivities() {
+    if (!activityList) return;
+    if (!activities.length) {
+        activityList.innerHTML = '<p class="empty-state">No planned activities yet.</p>';
+        return;
+    }
+
+    activityList.innerHTML = activities.map(act => {
+        const nikDisplay = act.nikScore !== null && act.nikScore !== undefined ? `${Number(act.nikScore).toFixed(1)}/10` : '—';
+        const leiDisplay = act.leiScore !== null && act.leiScore !== undefined ? `${Number(act.leiScore).toFixed(1)}/10` : '—';
+        const finalDisplay = act.finalScore !== null && act.finalScore !== undefined ? `BubScore: ${act.finalScore}/10` : 'Not fully scored';
+
+        return `
+            <article class="bubble activity-card">
+                <div>
+                    <h4>${escapeHtml(act.name)}</h4>
+                    <p style="font-size: 13px; color: #718096;">${act.date} at ${act.time}</p>
+                    <div style="font-size: 12px; margin-top: 6px; color: #4a5568;">
+                        <strong>Nik:</strong> ${nikDisplay} • <strong>Lei:</strong> ${leiDisplay} • <strong>${finalDisplay}</strong>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" class="save-btn complete-btn" data-id="${act.id}">${act.completed ? 'Edit Score' : 'Score It'}</button>
+                    <button type="button" class="ghost-btn delete-btn" data-id="${act.id}">×</button>
+                </div>
+            </article>
+        `;
+    }).join('');
 }
 
-if (addPinModalClose) {
-    addPinModalClose.addEventListener('click', closeAddPinModal);
-}
+activityForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    activities.unshift({
+        id: Date.now(),
+        name: activityNameInput.value.trim(),
+        date: activityDateInput.value,
+        time: activityTimeInput.value,
+        completed: false,
+        nikScore: null,
+        leiScore: null,
+        finalScore: null
+    });
+    saveActivities();
+    renderActivities();
+    activityForm.reset();
+});
 
-if (addPinCancelButton) {
-    addPinCancelButton.addEventListener('click', closeAddPinModal);
-}
+activityList.addEventListener('click', (e) => {
+    const completeBtn = e.target.closest('.complete-btn');
+    const delBtn = e.target.closest('.delete-btn');
 
-if (addPinModal) {
-    addPinModal.addEventListener('click', (event) => {
-        if (event.target && event.target.dataset.closeAdd === 'true') {
-            closeAddPinModal();
+    if (completeBtn) {
+        const act = activities.find(a => a.id === Number(completeBtn.dataset.id));
+        if (!act) return;
+        activeActivityId = act.id;
+        completionTitle.textContent = `Score: ${act.name}`;
+
+        nikScoreValue.dataset.original = act.nikScore !== null && act.nikScore !== undefined ? String(act.nikScore) : 'null';
+        leiScoreValue.dataset.original = act.leiScore !== null && act.leiScore !== undefined ? String(act.leiScore) : 'null';
+
+        nikScoreInput.value = act.nikScore !== null && act.nikScore !== undefined ? act.nikScore : 5.0;
+        leiScoreInput.value = act.leiScore !== null && act.leiScore !== undefined ? act.leiScore : 5.0;
+
+        nikScoreModified = false;
+        leiScoreModified = false;
+        updateActivitySliderLabels();
+        completionForm.classList.remove('hidden');
+    }
+
+    if (delBtn) {
+        if (confirm('Delete this activity?')) {
+            activities = activities.filter(a => a.id !== Number(delBtn.dataset.id));
+            saveActivities();
+            renderActivities();
+        }
+    }
+});
+
+saveCompletionButton.addEventListener('click', () => {
+    const act = activities.find(a => a.id === activeActivityId);
+    if (!act) return;
+
+    if (nikScoreModified) {
+        act.nikScore = Number(nikScoreInput.value);
+    }
+    if (leiScoreModified) {
+        act.leiScore = Number(leiScoreInput.value);
+    }
+
+    if (act.nikScore !== null && act.leiScore !== null) {
+        act.finalScore = Number(((act.nikScore + act.leiScore) / 2).toFixed(1));
+        act.completed = true;
+    } else if (act.nikScore !== null) {
+        act.finalScore = act.nikScore;
+    } else if (act.leiScore !== null) {
+        act.finalScore = act.leiScore;
+    }
+
+    saveActivities();
+    renderActivities();
+    completionForm.classList.add('hidden');
+});
+
+cancelCompletionButton.addEventListener('click', () => completionForm.classList.add('hidden'));
+
+// --- Navigation Tabs ---
+navButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        navButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        if (btn.textContent.includes('List')) {
+            listPage.classList.remove('hidden');
+            reviewsPage.classList.add('hidden');
+        } else {
+            reviewsPage.classList.remove('hidden');
+            listPage.classList.add('hidden');
+            renderReviews();
         }
     });
-}
+});
 
-if (addPinForm) {
-    addPinForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-
-        if (!newPinTitleInput || !newPinDetailsInput) {
-            return;
-        }
-
-        addNewPin(newPinTitleInput.value, newPinDetailsInput.value);
-        closeAddPinModal();
-    });
-}
-
-if (pinModalClose) {
-    pinModalClose.addEventListener('click', closePinModal);
-}
-
-if (pinModal) {
-    pinModal.addEventListener('click', (event) => {
-        if (event.target && event.target.dataset.close === 'true') {
-            closePinModal();
-        }
-    });
-}
-
-if (reviewList) {
-    reviewList.addEventListener('click', (event) => {
-        const editButton = event.target.closest('.edit-review-btn');
-
-        if (!editButton) {
-            return;
-        }
-
-        const targetId = editButton.dataset.id;
-
-        if (targetId) {
-            openPinModal(targetId);
-        }
-    });
-}
-
-if (pinNikRatingInput && pinLeiRatingInput) {
-    pinNikRatingInput.addEventListener('input', updatePinRatingLabel);
-    pinLeiRatingInput.addEventListener('input', updatePinRatingLabel);
-}
-
-if (pinLikeButton) {
-    pinLikeButton.addEventListener('click', () => {
-        const currentLiked = pinLikeButton.dataset.liked === 'true';
-        pinLikeButton.dataset.liked = String(!currentLiked);
-        pinLikeButton.textContent = !currentLiked ? '♥ Liked' : '♡ Like it';
-    });
-}
-
-if (pinForm) {
-    pinForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-
-        if (!activePinId) {
-            return;
-        }
-
-        const pin = pinBoardEntries.find(item => item.id === activePinId || item.id.toString() === activePinId);
-
-        if (!pin) {
-            return;
-        }
-
-        pin.review = pinReviewInput.value.trim();
-        pin.nikScore = Number(pinNikRatingInput.value);
-        pin.leiScore = Number(pinLeiRatingInput.value);
-        pin.rating = Number(getPinAverageScore(pin.nikScore, pin.leiScore));
-        pin.liked = pinLikeButton.dataset.liked === 'true';
-        pin.completed = true;
-        pin.details = pin.review || pin.details;
-
-        savePins();
-        launchConfettiBurst();
-        renderPins();
-        renderReviews();
-        closePinModal();
-    });
-}
-
-if (pinRemoveButton) {
-    pinRemoveButton.addEventListener('click', () => {
-        if (!activePinId) {
-            return;
-        }
-
-        const pin = pinBoardEntries.find(item => item.id === activePinId || item.id.toString() === activePinId);
-
-        if (!pin) {
-            return;
-        }
-
-        const confirmed = window.confirm(`Remove "${pin.title}" from your pin board?`);
-
-        if (!confirmed) {
-            return;
-        }
-
-        pinBoardEntries = pinBoardEntries.filter(item => item.id !== activePinId && item.id.toString() !== activePinId);
-        savePins();
-        renderPins();
-        renderReviews();
-        closePinModal();
-    });
-}
-
-renderPins();
-renderReviews();
-
-// Listen for remote pin updates and apply locally
-pinsRef.on('value', (snapshot) => {
-    const data = snapshot.val();
+// --- Remote Sync ---
+pinsRef.on('value', (snap) => {
+    const data = snap.val();
     if (!data) return;
-
-    // Firebase may return an object for lists; convert to array
-    const arr = Array.isArray(data) ? data : Object.values(data);
     isApplyingRemotePins = true;
-    pinBoardEntries = arr.map(normalizePin);
+    pinBoardEntries = (Array.isArray(data) ? data : Object.values(data)).map(normalizePin);
     localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinBoardEntries));
     renderPins();
     renderReviews();
     isApplyingRemotePins = false;
 });
 
-// Listen for remote activities updates and apply locally
-activitiesRef.on('value', (snapshot) => {
-    const data = snapshot.val();
+activitiesRef.on('value', (snap) => {
+    const data = snap.val();
     if (!data) return;
-
-    const arr = Array.isArray(data) ? data : Object.values(data);
     isApplyingRemoteActivities = true;
-    activities = arr;
+    activities = Array.isArray(data) ? data : Object.values(data);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
     renderActivities();
     isApplyingRemoteActivities = false;
 });
 
-if (navButtons) {
-    navButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            navButtons.forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-
-            if (button.textContent.toLowerCase().includes('list')) {
-                listPage.classList.remove('hidden');
-                reviewsPage.classList.add('hidden');
-            } else {
-                reviewsPage.classList.remove('hidden');
-                listPage.classList.add('hidden');
-                renderReviews();
-                runScoreTest();
-            }
-        });
-    });
-}
-
-if (pinNikRatingInput && pinLeiRatingInput) {
-    updatePinRatingLabel();
-}
-
-if (window) {
-    window.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && pinModal && !pinModal.classList.contains('hidden')) {
-            closePinModal();
-        }
-    });
-}
-
+renderPins();
+renderActivities();
+renderReviews();
