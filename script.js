@@ -685,17 +685,22 @@ navButtons.forEach(btn => {
 const googleLoginBtn = document.getElementById('google-login-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const userDisplay = document.getElementById('user-display');
+const authPrompt = document.getElementById('auth-prompt');
 const ALLOWED_EMAILS = [
     'ramharakhnikeel@gmail.com',
     'leia.singh01@gmail.com'
 ];
+let databaseListenersAttached = false;
+const authPersistenceReady = auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
 if (googleLoginBtn) {
     googleLoginBtn.addEventListener('click', () => {
         const provider = new firebase.auth.GoogleAuthProvider();
-        auth.signInWithPopup(provider).catch((error) => {
-            alert('Sign-in error: ' + error.message);
-        });
+        authPersistenceReady
+            .then(() => auth.signInWithPopup(provider))
+            .catch((error) => {
+                alert('Sign-in error: ' + error.message);
+            });
     });
 }
 
@@ -707,9 +712,7 @@ if (logoutBtn) {
     });
 }
 
-let databaseListenersAttached = false;
-
-auth.onAuthStateChanged((user) => {
+authPersistenceReady.then(() => auth.onAuthStateChanged((user) => {
     if (user) {
         const email = (user.email || '').toLowerCase();
         if (!ALLOWED_EMAILS.includes(email)) {
@@ -718,6 +721,7 @@ auth.onAuthStateChanged((user) => {
             if (googleLoginBtn) googleLoginBtn.style.display = 'inline-flex';
             if (userDisplay) userDisplay.style.display = 'none';
             if (logoutBtn) logoutBtn.style.display = 'none';
+            if (authPrompt) authPrompt.classList.remove('hidden');
             alert(`Access restricted: ${user.email || 'This account'} is not authorized for Bubweb.`);
             auth.signOut().catch((error) => {
                 console.error('Unable to sign out unauthorized user:', error);
@@ -732,6 +736,7 @@ auth.onAuthStateChanged((user) => {
             userDisplay.style.display = 'inline-block';
         }
         if (logoutBtn) logoutBtn.style.display = 'inline-block';
+        if (authPrompt) authPrompt.classList.add('hidden');
 
         attachDatabaseListeners();
     } else {
@@ -739,10 +744,15 @@ auth.onAuthStateChanged((user) => {
         if (googleLoginBtn) googleLoginBtn.style.display = 'inline-flex';
         if (userDisplay) userDisplay.style.display = 'none';
         if (logoutBtn) logoutBtn.style.display = 'none';
+        if (authPrompt) authPrompt.classList.remove('hidden');
         detachDatabaseListeners();
     }
 }, (error) => {
     console.error('Firebase Auth state error:', error);
+})).catch((error) => {
+    console.error('Unable to enable persistent Firebase Auth sessions:', error);
+    if (authPrompt) authPrompt.classList.remove('hidden');
+    alert('Unable to initialize sign-in: ' + error.message);
 });
 
 function attachDatabaseListeners() {

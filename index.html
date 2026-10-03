@@ -16,16 +16,10 @@
         </header>
 
         <div class="pin-actions animate-fade-in-delayed">
-<<<<<<< HEAD
-=======
             <div id="auth-container" style="display: flex; align-items: center; gap: 8px; margin-right: auto;">
-                <button id="google-login-btn" type="button" class="ghost-btn" style="font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
-                    <span>🔑</span> Sign In with Google
-                </button>
                 <span id="user-display" style="font-size: 12px; font-weight: 600; color: #4a5568; display: none;"></span>
                 <button id="logout-btn" type="button" class="ghost-btn delete-btn" style="font-size: 11px; padding: 4px 8px; display: none;">Sign Out</button>
             </div>
->>>>>>> ee4575c (Auths)
             <a href="https://photos.app.goo.gl/ZpFHXuDFiwuU2qzXA" target="_blank" rel="noopener noreferrer" class="ghost-btn master-vault-btn">📂 Master Photo Vault</a>
             <button id="add-pin-btn" class="add-pin-btn" type="button">+1 BubAdventure</button>
         </div>
@@ -220,6 +214,16 @@
         </div>
 
         <div id="confetti-layer" class="confetti-layer" aria-hidden="true"></div>
+
+        <div id="auth-prompt" class="auth-prompt" role="dialog" aria-modal="true" aria-labelledby="auth-prompt-title">
+            <div class="auth-prompt-panel">
+                <h2 id="auth-prompt-title">Sign in to continue</h2>
+                <p>Use your Google account to access the BubAdventure board.</p>
+                <button id="google-login-btn" type="button" class="ghost-btn auth-login-btn">
+                    <span aria-hidden="true">🔑</span> Sign In with Google
+                </button>
+            </div>
+        </div>
 
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>

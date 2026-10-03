@@ -69,6 +69,42 @@ body {
     display: none !important;
 }
 
+.auth-prompt {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(26, 32, 44, 0.72);
+}
+
+.auth-prompt-panel {
+    width: min(100%, 380px);
+    padding: 28px;
+    border-radius: 20px;
+    background: white;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+    text-align: center;
+}
+
+.auth-prompt-panel h2 {
+    margin: 0 0 8px;
+}
+
+.auth-prompt-panel p {
+    margin: 0 0 20px;
+    color: #4a5568;
+}
+
+.auth-login-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
 .hero {
     text-align: center;
     margin-bottom: 30px;
