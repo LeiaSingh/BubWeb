@@ -39,10 +39,12 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
 const db = firebase.database();
 const pinsRef = db.ref('pinBoardEntries');
 const activitiesRef = db.ref('activities');
 
+let isAuthorized = false;
 let isApplyingRemotePins = false;
 let isApplyingRemoteActivities = false;
 
@@ -116,7 +118,7 @@ function loadActivities() {
 
 function saveActivities() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
-    if (!isApplyingRemoteActivities) {
+    if (isAuthorized && !isApplyingRemoteActivities) {
         activitiesRef.set(activities).catch(e => console.warn(e));
     }
 }
@@ -133,7 +135,7 @@ function loadPins() {
 
 function savePins() {
     localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinBoardEntries));
-    if (!isApplyingRemotePins) {
+    if (isAuthorized && !isApplyingRemotePins) {
         pinsRef.set(pinBoardEntries).catch(e => console.warn(e));
     }
 }
@@ -679,27 +681,127 @@ navButtons.forEach(btn => {
     });
 });
 
+<<<<<<< HEAD
 // --- Remote Sync ---
 pinsRef.on('value', (snap) => {
+=======
+const reviewList = document.getElementById('review-list');
+if (reviewList) {
+    reviewList.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.edit-review-btn');
+        if (editBtn) openPinModal(editBtn.dataset.id);
+    });
+}
+
+// --- Auth UI & State Listener ---
+const googleLoginBtn = document.getElementById('google-login-btn');
+const logoutBtn = document.getElementById('logout-btn');
+const userDisplay = document.getElementById('user-display');
+const ALLOWED_EMAILS = [
+    'ramharakhnikeel@gmail.com',
+    'leia.singh01@gmail.com'
+];
+
+if (googleLoginBtn) {
+    googleLoginBtn.addEventListener('click', () => {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithPopup(provider).catch((error) => {
+            alert('Sign-in error: ' + error.message);
+        });
+    });
+}
+
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+        auth.signOut().catch((error) => {
+            alert('Sign-out error: ' + error.message);
+        });
+    });
+}
+
+let databaseListenersAttached = false;
+
+auth.onAuthStateChanged((user) => {
+    if (user) {
+        const email = (user.email || '').toLowerCase();
+        if (!ALLOWED_EMAILS.includes(email)) {
+            isAuthorized = false;
+            detachDatabaseListeners();
+            if (googleLoginBtn) googleLoginBtn.style.display = 'inline-flex';
+            if (userDisplay) userDisplay.style.display = 'none';
+            if (logoutBtn) logoutBtn.style.display = 'none';
+            alert(`Access restricted: ${user.email || 'This account'} is not authorized for Bubweb.`);
+            auth.signOut().catch((error) => {
+                console.error('Unable to sign out unauthorized user:', error);
+            });
+            return;
+        }
+
+        isAuthorized = true;
+        if (googleLoginBtn) googleLoginBtn.style.display = 'none';
+        if (userDisplay) {
+            userDisplay.textContent = `👋 ${user.displayName || user.email}`;
+            userDisplay.style.display = 'inline-block';
+        }
+        if (logoutBtn) logoutBtn.style.display = 'inline-block';
+
+        attachDatabaseListeners();
+    } else {
+        isAuthorized = false;
+        if (googleLoginBtn) googleLoginBtn.style.display = 'inline-flex';
+        if (userDisplay) userDisplay.style.display = 'none';
+        if (logoutBtn) logoutBtn.style.display = 'none';
+        detachDatabaseListeners();
+    }
+}, (error) => {
+    console.error('Firebase Auth state error:', error);
+});
+
+function attachDatabaseListeners() {
+    if (databaseListenersAttached) return;
+    databaseListenersAttached = true;
+    pinsRef.on('value', handleRemotePins, (error) => {
+        console.error('Unable to read pin board data:', error);
+    });
+    activitiesRef.on('value', handleRemoteActivities, (error) => {
+        console.error('Unable to read activity data:', error);
+    });
+}
+
+function detachDatabaseListeners() {
+    if (!databaseListenersAttached) return;
+    pinsRef.off('value', handleRemotePins);
+    activitiesRef.off('value', handleRemoteActivities);
+    databaseListenersAttached = false;
+}
+
+function handleRemotePins(snap) {
+>>>>>>> ee4575c (Auths)
     const data = snap.val();
     if (!data) return;
     isApplyingRemotePins = true;
-    pinBoardEntries = (Array.isArray(data) ? data : Object.values(data)).map(normalizePin);
-    localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinBoardEntries));
-    renderPins();
-    renderReviews();
-    isApplyingRemotePins = false;
-});
+    try {
+        pinBoardEntries = (Array.isArray(data) ? data : Object.values(data)).map(normalizePin);
+        localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinBoardEntries));
+        renderPins();
+        renderReviews();
+    } finally {
+        isApplyingRemotePins = false;
+    }
+}
 
-activitiesRef.on('value', (snap) => {
+function handleRemoteActivities(snap) {
     const data = snap.val();
     if (!data) return;
     isApplyingRemoteActivities = true;
-    activities = Array.isArray(data) ? data : Object.values(data);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
-    renderActivities();
-    isApplyingRemoteActivities = false;
-});
+    try {
+        activities = Array.isArray(data) ? data : Object.values(data);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
+        renderActivities();
+    } finally {
+        isApplyingRemoteActivities = false;
+    }
+}
 
 renderPins();
 renderActivities();
