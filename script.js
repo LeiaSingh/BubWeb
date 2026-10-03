@@ -148,26 +148,6 @@ function escapeHtml(value) {
         .replace(/"/g, '&quot;');
 }
 
-function launchConfettiBurst() {
-    const layer = document.getElementById('confetti-layer');
-    if (!layer) return;
-    const colors = ['#fbbf24', '#34d399', '#60a5fa', '#f472b6', '#f87171', '#a78bfa'];
-
-    for (let i = 0; i < 30; i++) {
-        const piece = document.createElement('span');
-        const size = 8 + Math.random() * 8;
-        piece.className = 'confetti-piece';
-        piece.style.left = `${Math.random() * 100}%`;
-        piece.style.width = `${size}px`;
-        piece.style.height = `${size * 1.5}px`;
-        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-        piece.style.setProperty('--drift', `${(Math.random() - 0.5) * 200}px`);
-        piece.style.setProperty('--rotation', `${Math.random() * 360}deg`);
-        layer.appendChild(piece);
-        setTimeout(() => piece.remove(), 2000);
-    }
-}
-
 // --- Render Pin Board ---
 const pinBoard = document.getElementById('pin-board');
 
@@ -187,16 +167,15 @@ function renderPins() {
         }
 
         const scoreText = pin.rating !== null 
-            ? `★ ${pin.rating.toFixed(1)}/10` 
+            ? `Rating: ${pin.rating.toFixed(1)}/10` 
             : 'Unrated';
 
         const albumBtn = pin.albumUrl 
-            ? `<a href="${pin.albumUrl}" target="_blank" rel="noopener noreferrer" class="ghost-btn album-chip" onclick="event.stopPropagation()">📸 Google Photos</a>` 
+            ? `<a href="${pin.albumUrl}" target="_blank" rel="noopener noreferrer" class="ghost-btn album-chip" onclick="event.stopPropagation()">Google Photos</a>` 
             : '';
 
         return `
             <div class="pin-card post-it ${pin.type} ${pin.completed ? 'done' : ''}" data-id="${pin.id}" tabindex="0">
-                <div class="pin-head">📌</div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span class="bubble-tag">${escapeHtml(pin.tag)}</span>
                     ${albumBtn}
@@ -205,28 +184,15 @@ function renderPins() {
                 <h3>${escapeHtml(pin.title)}</h3>
                 <p>${escapeHtml(pin.details)}</p>
                 <div class="pin-meta">
-                    <span>${pin.liked ? '♥ Favorited' : '♡'}</span>
+                    <span>${pin.liked ? 'Favorited' : 'Not favorited'}</span>
                     <span>${scoreText}</span>
-                    <span>${pin.completed ? '✓ Completed' : 'Planned'}</span>
+                    <span>${pin.completed ? 'Completed' : 'Planned'}</span>
                 </div>
             </div>
         `;
     }).join('');
 
     pinBoard.querySelectorAll('.pin-card').forEach(card => {
-        card.addEventListener('pointermove', (e) => {
-            const rect = card.getBoundingClientRect();
-            const x = e.clientX - rect.left - rect.width / 2;
-            const y = e.clientY - rect.top - rect.height / 2;
-            const tiltX = (y / rect.height) * -10;
-            const tiltY = (x / rect.width) * 10;
-            card.style.transform = `perspective(600px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.03)`;
-        });
-
-        card.addEventListener('pointerleave', () => {
-            card.style.transform = '';
-        });
-
         card.addEventListener('click', () => {
             openPinModal(card.dataset.id);
         });
@@ -256,7 +222,7 @@ function renderReviews() {
         const avgDisplay = pin.rating !== null ? `${pin.rating.toFixed(1)}/10` : '—';
 
         const albumLinkBtn = pin.albumUrl
-            ? `<a href="${pin.albumUrl}" target="_blank" rel="noopener noreferrer" class="ghost-btn" style="text-decoration:none; font-size:12px;">📂 Full Google Photos Album</a>`
+            ? `<a href="${pin.albumUrl}" target="_blank" rel="noopener noreferrer" class="ghost-btn" style="text-decoration:none; font-size:12px;">Open Google Photos Album</a>`
             : '';
 
         return `
@@ -267,9 +233,9 @@ function renderReviews() {
                 </div>
                 ${galleryHtml}
                 <h4 style="font-size: 18px; margin: 6px 0;">${escapeHtml(pin.title)}</h4>
-                <p style="color: #4a5568;">${escapeHtml(pin.review || pin.details)}</p>
-                <p style="font-size: 12.5px; font-weight: 700; margin-top: 8px; color: #2d3748;">
-                    Nik: ${nikDisplay} • Lei: ${leiDisplay} • ${pin.liked ? '♥ Liked' : '♡'}
+                <p style="color: #444444;">${escapeHtml(pin.review || pin.details)}</p>
+                <p style="font-size: 12.5px; font-weight: 700; margin-top: 8px; color: #333333;">
+                    Nik: ${nikDisplay} | Lei: ${leiDisplay} | ${pin.liked ? 'Favorited' : 'Not favorited'}
                 </p>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
                     ${albumLinkBtn}
@@ -415,7 +381,7 @@ function openPinModal(pinId) {
     renderModalPhotoPreviews();
 
     pinLikeButton.dataset.liked = pin.liked ? 'true' : 'false';
-    pinLikeButton.textContent = pin.liked ? '♥ Favorited' : '♡ Favorite';
+    pinLikeButton.textContent = pin.liked ? 'Favorited' : 'Favorite';
 
     updatePinScoreLabels();
     pinModal.classList.remove('hidden');
@@ -434,15 +400,13 @@ document.querySelector('[data-close="true"]').addEventListener('click', closePin
 pinLikeButton.addEventListener('click', () => {
     const current = pinLikeButton.dataset.liked === 'true';
     pinLikeButton.dataset.liked = String(!current);
-    pinLikeButton.textContent = !current ? '♥ Favorited' : '♡ Favorite';
+    pinLikeButton.textContent = !current ? 'Favorited' : 'Favorite';
 });
 
 pinForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const pin = pinBoardEntries.find(p => p.id === activePinId);
     if (!pin) return;
-
-    const wasCompleted = pin.completed;
 
     pin.title = pinTitleInput.value.trim();
     pin.details = pinDetailsInput.value.trim();
@@ -477,14 +441,6 @@ pinForm.addEventListener('submit', (e) => {
     renderReviews();
     closePinModal();
 
-    if (!wasCompleted && pin.completed) {
-        launchConfettiBurst();
-        const activeCard = document.querySelector(`.pin-card[data-id="${pin.id}"]`);
-        if (activeCard) {
-            activeCard.classList.add('tossing');
-            setTimeout(() => activeCard.classList.remove('tossing'), 650);
-        }
-    }
 });
 
 pinRemoveButton.addEventListener('click', () => {
@@ -540,7 +496,6 @@ addPinForm.addEventListener('submit', (e) => {
     renderReviews();
     addPinForm.reset();
     addPinModal.classList.add('hidden');
-    launchConfettiBurst();
 });
 
 // --- Scheduled Activity Scoring Logic ---
@@ -575,8 +530,8 @@ function renderActivities() {
             <article class="bubble activity-card">
                 <div>
                     <h4>${escapeHtml(act.name)}</h4>
-                    <p style="font-size: 13px; color: #718096;">${act.date} at ${act.time}</p>
-                    <div style="font-size: 12px; margin-top: 6px; color: #4a5568;">
+                    <p style="font-size: 13px; color: #666666;">${act.date} at ${act.time}</p>
+                    <div style="font-size: 12px; margin-top: 6px; color: #444444;">
                         <strong>Nik:</strong> ${nikDisplay} • <strong>Lei:</strong> ${leiDisplay} • <strong>${finalDisplay}</strong>
                     </div>
                 </div>
@@ -697,7 +652,7 @@ if (googleLoginBtn) {
     googleLoginBtn.addEventListener('click', () => {
         const provider = new firebase.auth.GoogleAuthProvider();
         authPersistenceReady
-            .then(() => auth.signInWithPopup(provider))
+            .then(() => auth.signInWithRedirect(provider))
             .catch((error) => {
                 alert('Sign-in error: ' + error.message);
             });
@@ -732,7 +687,7 @@ authPersistenceReady.then(() => auth.onAuthStateChanged((user) => {
         isAuthorized = true;
         if (googleLoginBtn) googleLoginBtn.style.display = 'none';
         if (userDisplay) {
-            userDisplay.textContent = `👋 ${user.displayName || user.email}`;
+            userDisplay.textContent = user.displayName || user.email;
             userDisplay.style.display = 'inline-block';
         }
         if (logoutBtn) logoutBtn.style.display = 'inline-block';
@@ -753,6 +708,11 @@ authPersistenceReady.then(() => auth.onAuthStateChanged((user) => {
     console.error('Unable to enable persistent Firebase Auth sessions:', error);
     if (authPrompt) authPrompt.classList.remove('hidden');
     alert('Unable to initialize sign-in: ' + error.message);
+});
+
+authPersistenceReady.then(() => auth.getRedirectResult()).catch((error) => {
+    console.error('Google sign-in redirect failed:', error);
+    alert('Google sign-in failed: ' + error.message);
 });
 
 function attachDatabaseListeners() {

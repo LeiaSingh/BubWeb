@@ -10,28 +10,28 @@
 <body>
     <div class="container">
         <header class="hero">
-            <div class="header-art-wrapper animate-rise"> 
+            <div class="header-art-wrapper"> 
                 <img src="images/header_high_five.png" alt="Nik & Lei's Guide to the Outside" class="header-art">
             </div>
         </header>
 
-        <div class="pin-actions animate-fade-in-delayed">
+        <div class="pin-actions">
             <div id="auth-container" style="display: flex; align-items: center; gap: 8px; margin-right: auto;">
-                <span id="user-display" style="font-size: 12px; font-weight: 600; color: #4a5568; display: none;"></span>
+                <span id="user-display" style="font-size: 12px; font-weight: 600; color: #444444; display: none;"></span>
                 <button id="logout-btn" type="button" class="ghost-btn delete-btn" style="font-size: 11px; padding: 4px 8px; display: none;">Sign Out</button>
             </div>
-            <a href="https://photos.app.goo.gl/ZpFHXuDFiwuU2qzXA" target="_blank" rel="noopener noreferrer" class="ghost-btn master-vault-btn">📂 Master Photo Vault</a>
+            <a href="https://photos.app.goo.gl/ZpFHXuDFiwuU2qzXA" target="_blank" rel="noopener noreferrer" class="ghost-btn master-vault-btn">Master Photo Vault</a>
             <button id="add-pin-btn" class="add-pin-btn" type="button">+1 BubAdventure</button>
         </div>
 
-        <section id="pin-board" class="pin-board animate-fade-in-delayed" aria-live="polite"></section>
+        <section id="pin-board" class="pin-board" aria-live="polite"></section>
 
-        <nav class="page-nav animate-fade-in-delayed">
+        <nav class="page-nav">
             <button class="nav-btn active">The Full List</button>
             <button class="nav-btn">BubReviews &amp; Gallery</button>
         </nav>
 
-        <main class="main-content animate-fade-in-delayed">
+        <main class="main-content">
             <div id="list-page" class="page-content">
                 <div class="activity-manager">
                     <form id="activity-form" class="bubble activity-form">
@@ -88,9 +88,9 @@
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
                     <div>
                         <h2>BubAdventure Reviews &amp; Memory Wall</h2>
-                        <p style="color: #718096;">Vibes, General Whimsy, and Snapshots</p>
+                        <p style="color: #666666;">Adventure reviews and photos</p>
                     </div>
-                    <a href="https://photos.app.goo.gl/ZpFHXuDFiwuU2qzXA" target="_blank" rel="noopener noreferrer" class="save-btn" style="text-decoration: none; font-size: 13px;">📸 Open Full Google Photos Vault</a>
+                    <a href="https://photos.app.goo.gl/ZpFHXuDFiwuU2qzXA" target="_blank" rel="noopener noreferrer" class="save-btn" style="text-decoration: none; font-size: 13px;">Open Google Photos Vault</a>
                 </div>
                 <div id="review-list" class="review-list"></div>
             </div>
@@ -130,10 +130,10 @@
                     </label>
 
                     <label class="field">
-                        <span>Preview Snapshots (Fast Polaroids)</span>
+                        <span>Photo Thumbnails</span>
                         <div class="photo-upload-container">
                             <input type="file" id="pin-photo-input" accept="image/*" multiple class="file-input-hidden">
-                            <button type="button" id="pin-photo-trigger-btn" class="ghost-btn photo-trigger-btn">📸 Choose Thumbnails</button>
+                            <button type="button" id="pin-photo-trigger-btn" class="ghost-btn photo-trigger-btn">Choose Thumbnails</button>
                             <span id="pin-photo-status" class="photo-status">No photos selected</span>
                         </div>
                         <div id="pin-photo-preview-wrap" class="photo-preview-grid"></div>
@@ -165,7 +165,7 @@
                     <p id="pin-aggregate-score" class="pin-aggregate-score">BubScore: — / 10.0</p>
 
                     <div class="pin-modal-actions">
-                        <button type="button" id="pin-like-btn" class="ghost-btn">♡ Favorite</button>
+                        <button type="button" id="pin-like-btn" class="ghost-btn">Favorite</button>
                         <button type="submit" class="save-btn">Save Changes</button>
                     </div>
 
@@ -213,14 +213,12 @@
             </div>
         </div>
 
-        <div id="confetti-layer" class="confetti-layer" aria-hidden="true"></div>
-
         <div id="auth-prompt" class="auth-prompt" role="dialog" aria-modal="true" aria-labelledby="auth-prompt-title">
             <div class="auth-prompt-panel">
                 <h2 id="auth-prompt-title">Sign in to continue</h2>
                 <p>Use your Google account to access the BubAdventure board.</p>
                 <button id="google-login-btn" type="button" class="ghost-btn auth-login-btn">
-                    <span aria-hidden="true">🔑</span> Sign In with Google
+                    Sign In with Google
                 </button>
             </div>
         </div>
