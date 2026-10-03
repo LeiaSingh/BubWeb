@@ -681,18 +681,6 @@ navButtons.forEach(btn => {
     });
 });
 
-<<<<<<< HEAD
-// --- Remote Sync ---
-pinsRef.on('value', (snap) => {
-=======
-const reviewList = document.getElementById('review-list');
-if (reviewList) {
-    reviewList.addEventListener('click', (e) => {
-        const editBtn = e.target.closest('.edit-review-btn');
-        if (editBtn) openPinModal(editBtn.dataset.id);
-    });
-}
-
 // --- Auth UI & State Listener ---
 const googleLoginBtn = document.getElementById('google-login-btn');
 const logoutBtn = document.getElementById('logout-btn');
@@ -776,7 +764,6 @@ function detachDatabaseListeners() {
 }
 
 function handleRemotePins(snap) {
->>>>>>> ee4575c (Auths)
     const data = snap.val();
     if (!data) return;
     isApplyingRemotePins = true;
