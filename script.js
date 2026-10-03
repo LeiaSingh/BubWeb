@@ -669,8 +669,10 @@ if (logoutBtn) {
 
 authPersistenceReady.then(() => auth.onAuthStateChanged((user) => {
     if (user) {
-        const email = (user.email || '').toLowerCase();
+        const email = (user.email || '').trim().toLowerCase();
+        console.info('Firebase Auth signed-in email:', user.email);
         if (!ALLOWED_EMAILS.includes(email)) {
+            console.error('Firebase Auth email rejected by allowlist:', email || '(missing email)');
             isAuthorized = false;
             detachDatabaseListeners();
             if (googleLoginBtn) googleLoginBtn.style.display = 'inline-flex';
@@ -684,6 +686,7 @@ authPersistenceReady.then(() => auth.onAuthStateChanged((user) => {
             return;
         }
 
+        console.info('Firebase Auth access granted to:', email);
         isAuthorized = true;
         if (googleLoginBtn) googleLoginBtn.style.display = 'none';
         if (userDisplay) {
@@ -701,6 +704,7 @@ authPersistenceReady.then(() => auth.onAuthStateChanged((user) => {
         if (logoutBtn) logoutBtn.style.display = 'none';
         if (authPrompt) authPrompt.classList.remove('hidden');
         detachDatabaseListeners();
+        console.info('No Firebase Auth user is signed in.');
     }
 }, (error) => {
     console.error('Firebase Auth state error:', error);
