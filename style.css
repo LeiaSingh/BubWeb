@@ -49,11 +49,26 @@ body {
     color: #4a5568;
 }
 
-.auth-login-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
+.auth-login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+}
+
+.auth-login-form .field {
+    margin-bottom: 0;
+}
+
+.auth-login-error {
+    margin: 0;
+    color: #9b1c1c;
+    font-size: 13px;
+}
+
+.auth-login-submit {
+    width: 100%;
+    margin-top: 4px;
 }
 
 .hero {

@@ -637,25 +637,40 @@ navButtons.forEach(btn => {
 });
 
 // --- Auth UI & State Listener ---
-const googleLoginBtn = document.getElementById('google-login-btn');
+const loginForm = document.getElementById('login-form');
+const loginEmailInput = document.getElementById('login-email');
+const loginPasswordInput = document.getElementById('login-password');
+const loginErrorText = document.getElementById('login-error');
+const loginSubmitBtn = document.getElementById('login-submit-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const userDisplay = document.getElementById('user-display');
 const authPrompt = document.getElementById('auth-prompt');
-const ALLOWED_EMAILS = [
-    'ramharakhnikeel@gmail.com',
-    'leia.singh01@gmail.com'
-];
 let databaseListenersAttached = false;
 const authPersistenceReady = auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
-if (googleLoginBtn) {
-    googleLoginBtn.addEventListener('click', () => {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        authPersistenceReady
-            .then(() => auth.signInWithRedirect(provider))
-            .catch((error) => {
-                alert('Sign-in error: ' + error.message);
-            });
+if (loginForm) {
+    loginForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        loginErrorText.textContent = '';
+        loginErrorText.hidden = true;
+        loginSubmitBtn.disabled = true;
+        loginSubmitBtn.textContent = 'Signing in...';
+
+        try {
+            await authPersistenceReady;
+            await auth.signInWithEmailAndPassword(
+                loginEmailInput.value.trim(),
+                loginPasswordInput.value
+            );
+            loginForm.reset();
+        } catch (error) {
+            console.error('Email/password sign-in failed:', error);
+            loginErrorText.textContent = error.message || 'Unable to sign in. Check your email and password.';
+            loginErrorText.hidden = false;
+        } finally {
+            loginSubmitBtn.disabled = false;
+            loginSubmitBtn.textContent = 'Sign In';
+        }
     });
 }
 
@@ -669,26 +684,8 @@ if (logoutBtn) {
 
 authPersistenceReady.then(() => auth.onAuthStateChanged((user) => {
     if (user) {
-        const email = (user.email || '').trim().toLowerCase();
-        console.info('Firebase Auth signed-in email:', user.email);
-        if (!ALLOWED_EMAILS.includes(email)) {
-            console.error('Firebase Auth email rejected by allowlist:', email || '(missing email)');
-            isAuthorized = false;
-            detachDatabaseListeners();
-            if (googleLoginBtn) googleLoginBtn.style.display = 'inline-flex';
-            if (userDisplay) userDisplay.style.display = 'none';
-            if (logoutBtn) logoutBtn.style.display = 'none';
-            if (authPrompt) authPrompt.classList.remove('hidden');
-            alert(`Access restricted: ${user.email || 'This account'} is not authorized for Bubweb.`);
-            auth.signOut().catch((error) => {
-                console.error('Unable to sign out unauthorized user:', error);
-            });
-            return;
-        }
-
-        console.info('Firebase Auth access granted to:', email);
+        console.info('Firebase Auth signed in:', user.email || user.uid);
         isAuthorized = true;
-        if (googleLoginBtn) googleLoginBtn.style.display = 'none';
         if (userDisplay) {
             userDisplay.textContent = user.displayName || user.email;
             userDisplay.style.display = 'inline-block';
@@ -699,7 +696,6 @@ authPersistenceReady.then(() => auth.onAuthStateChanged((user) => {
         attachDatabaseListeners();
     } else {
         isAuthorized = false;
-        if (googleLoginBtn) googleLoginBtn.style.display = 'inline-flex';
         if (userDisplay) userDisplay.style.display = 'none';
         if (logoutBtn) logoutBtn.style.display = 'none';
         if (authPrompt) authPrompt.classList.remove('hidden');
@@ -712,11 +708,6 @@ authPersistenceReady.then(() => auth.onAuthStateChanged((user) => {
     console.error('Unable to enable persistent Firebase Auth sessions:', error);
     if (authPrompt) authPrompt.classList.remove('hidden');
     alert('Unable to initialize sign-in: ' + error.message);
-});
-
-authPersistenceReady.then(() => auth.getRedirectResult()).catch((error) => {
-    console.error('Google sign-in redirect failed:', error);
-    alert('Google sign-in failed: ' + error.message);
 });
 
 function attachDatabaseListeners() {
