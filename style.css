@@ -2,16 +2,15 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: "Times New Roman", Times, serif;
+    font-family: "Caveat", cursive;
 }
 
 body {
-    background-color: #f5f5f2;
+    background-color: #174b2b;
     background-image: url("images/washdown.jpeg");
-    background-position: center center;
+    background-position: center top;
     background-repeat: no-repeat;
-    background-size: cover;
-    background-attachment: fixed;
+    background-size: 100% auto;
     color: #222222;
     padding: 40px 20px;
     min-height: 100vh;
@@ -137,7 +136,25 @@ body {
     user-select: none;
 }
 
+@keyframes swayInTheWind {
+    0%, 100% { transform: rotate(-1deg) translateY(0); }
+    50% { transform: rotate(1deg) translateY(-3px); }
+}
+
+.pin-card:nth-child(3n + 1) {
+    animation: swayInTheWind 6.5s ease-in-out infinite;
+}
+
+.pin-card:nth-child(3n + 2) {
+    animation: swayInTheWind 7.5s ease-in-out -2.5s infinite;
+}
+
+.pin-card:nth-child(3n + 3) {
+    animation: swayInTheWind 7s ease-in-out -4s infinite;
+}
+
 .pin-card:hover, .pin-card:focus {
+    animation-play-state: paused;
     box-shadow: 0 18px 30px rgba(0, 0, 0, 0.14);
     z-index: 10;
 }
@@ -157,16 +174,24 @@ body {
     font-weight: 800;
 }
 
-.post-it.next-up,
-.post-it.event,
+.post-it.next-up {
+    background: #dce8f4;
+    border: 1px solid #b9cde0;
+}
+
+.post-it.event {
+    background: #e4ecd9;
+    border: 1px solid #c4d3b2;
+}
+
 .post-it.memory {
-    background: #ffffff;
-    border: 1px solid #d8d8d3;
+    background: #f2ded9;
+    border: 1px solid #dfc0b9;
 }
 
 .post-it .bubble-tag {
     color: #444444;
-    background: #eeeeeb;
+    background: rgba(255, 255, 255, 0.58);
 }
 
 /* Multi-Photo Polaroid Gallery */
@@ -514,6 +539,14 @@ body {
 
 .album-chip:hover {
     background: #eeeeeb;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pin-card:nth-child(3n + 1),
+    .pin-card:nth-child(3n + 2),
+    .pin-card:nth-child(3n + 3) {
+        animation: none;
+    }
 }
 
 .master-vault-btn {
