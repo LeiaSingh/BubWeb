@@ -115,6 +115,48 @@ body {
     background: #444444;
 }
 
+.add-pin-btn.nik-theme {
+    border-color: #3975a8;
+    background: #3975a8;
+}
+
+.add-pin-btn.nik-theme:hover {
+    background: #2c608e;
+}
+
+.add-pin-btn.lei-theme {
+    border-color: #c76f91;
+    background: #c76f91;
+}
+
+.add-pin-btn.lei-theme:hover {
+    background: #ad587a;
+}
+
+.user-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border: 1px solid #d8d8d3;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #333333;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.user-badge.nik-theme {
+    border-color: #b9cde0;
+    background: #dce8f4;
+    color: #244967;
+}
+
+.user-badge.lei-theme {
+    border-color: #dfc0b9;
+    background: #f2ded9;
+    color: #743f50;
+}
+
 /* Pin Board Grid */
 .pin-board {
     display: grid;

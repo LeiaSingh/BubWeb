@@ -644,7 +644,15 @@ const loginErrorText = document.getElementById('login-error');
 const loginSubmitBtn = document.getElementById('login-submit-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const userDisplay = document.getElementById('user-display');
+const addPinButton = document.getElementById('add-pin-btn');
 const authPrompt = document.getElementById('auth-prompt');
+const ACCOUNT_ALIASES = {
+    'ramharakhnikeel@gmail.com': { name: 'Nik', theme: 'nik-theme' },
+    'nikeel.ramharakh@gmail.com': { name: 'Nik', theme: 'nik-theme' },
+    'nikeelramharakh@gmail.com': { name: 'Nik', theme: 'nik-theme' },
+    'leia.singh01@gmail.com': { name: 'Lei', theme: 'lei-theme' },
+    'leiasingh01@gmail.com': { name: 'Lei', theme: 'lei-theme' }
+};
 let databaseListenersAttached = false;
 const authPersistenceReady = auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
@@ -685,10 +693,17 @@ if (logoutBtn) {
 authPersistenceReady.then(() => auth.onAuthStateChanged((user) => {
     if (user) {
         console.info('Firebase Auth signed in:', user.email || user.uid);
+        const account = ACCOUNT_ALIASES[(user.email || '').trim().toLowerCase()];
         isAuthorized = true;
         if (userDisplay) {
-            userDisplay.textContent = user.displayName || user.email;
+            userDisplay.textContent = account ? account.name : (user.displayName || user.email);
+            userDisplay.classList.remove('nik-theme', 'lei-theme');
+            if (account) userDisplay.classList.add(account.theme);
             userDisplay.style.display = 'inline-block';
+        }
+        if (addPinButton) {
+            addPinButton.classList.remove('nik-theme', 'lei-theme');
+            if (account) addPinButton.classList.add(account.theme);
         }
         if (logoutBtn) logoutBtn.style.display = 'inline-block';
         if (authPrompt) authPrompt.classList.add('hidden');
@@ -696,7 +711,11 @@ authPersistenceReady.then(() => auth.onAuthStateChanged((user) => {
         attachDatabaseListeners();
     } else {
         isAuthorized = false;
-        if (userDisplay) userDisplay.style.display = 'none';
+        if (userDisplay) {
+            userDisplay.style.display = 'none';
+            userDisplay.classList.remove('nik-theme', 'lei-theme');
+        }
+        if (addPinButton) addPinButton.classList.remove('nik-theme', 'lei-theme');
         if (logoutBtn) logoutBtn.style.display = 'none';
         if (authPrompt) authPrompt.classList.remove('hidden');
         detachDatabaseListeners();
