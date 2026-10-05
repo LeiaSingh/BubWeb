@@ -196,9 +196,15 @@ body {
 }
 
 .pin-card:hover, .pin-card:focus {
-    animation-play-state: paused;
     box-shadow: 0 18px 30px rgba(0, 0, 0, 0.14);
     z-index: 10;
+}
+
+@media (hover: hover) {
+    .pin-card:hover,
+    .pin-card:focus {
+        animation-play-state: paused;
+    }
 }
 
 .pin-card.done {
