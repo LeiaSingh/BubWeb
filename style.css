@@ -2,17 +2,15 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: "Caveat", cursive;
+    font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 body {
-    background-color: #174b2b;
-    background-image: url("images/washdown.jpeg");
-    background-position: center top;
-    background-repeat: no-repeat;
-    background-size: 100% auto;
+    background-color: #e9d7ce; /* Warm cream journal paper */
+    background-image: radial-gradient(#cfc7bc 1.25px, transparent 0);
+    background-size: 24px 24px;
     color: #222222;
-    padding: 40px 20px;
+    padding: 0 20px 40px; /* 0 top padding so the banner hits the top edge */
     min-height: 100vh;
 }
 
@@ -77,15 +75,70 @@ body {
 }
 
 .hero {
-    text-align: center;
-    margin-bottom: 30px;
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    
+    /* Pulls the buttons and board UP over the bottom of the hills */
+    margin-bottom: -200px; 
+
+    background-image: url("images/header_banner.png"); /* Keep your current filename */
+    background-position: center bottom;
+    background-repeat: no-repeat;
+    background-size: 100% auto;
+
+    /* Adjust 180px to control how far below the header text the hills sit */
+    padding: 30px 20px 290px;
+
     display: flex;
     justify-content: center;
+    align-items: flex-start;
+    position: relative;
+    z-index: 1;
+}
+
+/* Make sure .hero clips the clouds as they drift off-screen */
+.hero {
+    overflow: hidden;
+}
+
+.cloud-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none; /* Never blocks clicks */
+    z-index: 0;
+}
+
+.cloud {
+    position: absolute;
+    opacity: 0.85;
+    animation: driftAcross linear infinite;
+}
+
+.cloud-1 { top: 15px; width: 180px; animation-duration: 45s; }
+.cloud-2 { top: 65px; width: 130px; animation-duration: 65s; animation-delay: -20s; }
+
+@keyframes driftAcross {
+    from { transform: translateX(-220px); }
+    to   { transform: translateX(105vw); }
+}
+
+/* Weather & Time Themes (swap colors/urls as you paint them) */
+body.theme-day .hero       { background-color: transparent; }
+body.theme-afternoon .hero { background-color: rgba(255, 198, 130, 0.25); }
+body.theme-rain .hero      { background-color: rgba(110, 135, 160, 0.35); }
+body.theme-night .hero     { background-color: rgba(20, 28, 52, 0.75); }
+
+/* Keeps the action bar and Post-It board floating ON TOP of the hills */
+.pin-actions,
+#pin-board {
+    position: relative;
+    z-index: 2;
 }
 
 .header-art-wrapper {
     width: 100%;
     max-width: 700px;
+    position: relative;
 }
 
 .header-art {
@@ -168,14 +221,30 @@ body {
 
 .pin-card {
     position: relative;
-    padding: 24px 20px 18px;
-    border-radius: 6px;
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+    padding: 32px 26px 24px; /* Adjust if text gets too close to the paper edges */
+    border-radius: 0;
+    box-shadow: none;        /* Removes the digital drop shadow */
+    background-color: transparent;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: center;
     cursor: pointer;
-    background: #fff;
     display: flex;
     flex-direction: column;
     user-select: none;
+    
+    /* Optional: keeps the paper square and scrolls inside if content is long */
+    aspect-ratio: 1 / 1;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.pin-card::-webkit-scrollbar {
+    display: none;
+}
+
+.pin-card.done {
+    border: none; /* Removes the grey box border on completed cards */
 }
 
 @keyframes swayInTheWind {
@@ -236,6 +305,21 @@ body {
     background: #f2ded9;
     border: 1px solid #dfc0b9;
 }
+
+/* .post-it.next-up {
+    background-image: url("images/imgblue.png"); 
+    border: none;
+}
+.post-it.event {
+    background-image: url("images/image (2).png"); 
+    border: none;
+}
+.post-it.memory {
+    background-image: url("images/image (1).png"); 
+    border: none;
+}*/
+
+
 
 .post-it .bubble-tag {
     color: #444444;
@@ -604,4 +688,107 @@ body {
     gap: 6px;
     margin-right: 10px;
     padding: 10px 18px;
+}
+
+/* Handwritten font ONLY for the tactile scrapbook pieces */
+.pin-card h3,
+.board-col-title,
+.scrap-link {
+    font-family: "Caveat", cursive;
+}
+
+.pin-card h3 {
+    font-size: 26px;
+    line-height: 1.1;
+}
+
+.pin-card p {
+    font-family: "Caveat", cursive;
+    font-size: 20px;
+    line-height: 1.25;
+}
+
+/* Landing Page: 3-Column Overview */
+.pin-board-columns {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+@media (max-width: 820px) {
+    .pin-board-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+.board-column {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.board-col-title {
+    font-size: 30px;
+    color: #ffffff;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    text-align: center;
+    margin-bottom: 4px;
+}
+
+/* Scrap Paper Navigation Links */
+.scrap-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 18px;
+    margin: 10px 0 36px;
+}
+
+.scrap-link {
+    display: inline-block;
+    text-decoration: none;
+    color: #2b2621;
+    font-size: 24px;
+    font-weight: 700;
+    padding: 10px 22px;
+    background: #fdfbf7;
+    border: 1px solid #d6cfc2;
+    box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.15);
+    /* Slight torn/imperfect paper feel */
+    clip-path: polygon(1% 4%, 99% 0%, 98% 96%, 2% 100%, 0% 52%);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.scrap-link:nth-child(1) { transform: rotate(-2deg); background: #f2ded9; }
+.scrap-link:nth-child(2) { transform: rotate(1.5deg); background: #e4ecd9; }
+.scrap-link:nth-child(3) { transform: rotate(-1deg); background: #dce8f4; }
+
+.scrap-link:hover {
+    transform: scale(1.06) rotate(0deg);
+    box-shadow: 4px 8px 16px rgba(0, 0, 0, 0.22);
+}
+
+/* Dedicated Category Page Header */
+.category-view-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 16px;
+}
+
+
+/* Example: Distinct page styling */
+body[data-view="memories"] {
+    background-color: #f4ece1; /* Warmer, vintage scrapbook paper */
+}
+
+body[data-view="upcoming"] {
+    background-color: #f0f5ef; /* Soft sage paper */
+}
+
+body[data-view="wishlist"] {
+    background-color: #eef3f8; /* Airy sky-tinted paper */
 }

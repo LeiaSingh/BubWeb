@@ -148,56 +148,125 @@ function escapeHtml(value) {
         .replace(/"/g, '&quot;');
 }
 
-// --- Render Pin Board ---
+// --- Render Pin Board (Landing Overview + Dedicated Category Pages) ---
 const pinBoard = document.getElementById('pin-board');
+
+function getCurrentCategoryView() {
+    const hash = window.location.hash.replace('#', '');
+    if (['memories', 'upcoming', 'wishlist'].includes(hash)) return hash;
+    return 'home';
+}
+
+function buildPinCardHtml(pin) {
+    const photos = pin.images && pin.images.length ? pin.images : (pin.image ? [pin.image] : []);
+    let galleryHtml = '';
+    if (photos.length > 0) {
+        galleryHtml = `
+            <div class="polaroid-gallery">
+                ${photos.slice(0, 3).map(src => `<div class="polaroid-preview-card"><img src="${src}" alt="Memory"></div>`).join('')}
+            </div>
+        `;
+    }
+
+    const scoreText = pin.rating !== null ? `Rating: ${pin.rating.toFixed(1)}/10` : 'Unrated';
+    const albumBtn = pin.albumUrl
+        ? `<a href="${pin.albumUrl}" target="_blank" rel="noopener noreferrer" class="ghost-btn album-chip" onclick="event.stopPropagation()">Google Photos</a>`
+        : '';
+
+    return `
+        <div class="pin-card post-it ${pin.type} ${pin.completed ? 'done' : ''}" data-id="${pin.id}" tabindex="0">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span class="bubble-tag">${escapeHtml(pin.tag)}</span>
+                ${albumBtn}
+            </div>
+            ${galleryHtml}
+            <h3>${escapeHtml(pin.title)}</h3>
+            <p>${escapeHtml(pin.details)}</p>
+            <div class="pin-meta">
+                <span>${pin.liked ? 'Favorited' : 'Not favorited'}</span>
+                <span>${scoreText}</span>
+                <span>${pin.completed ? 'Completed' : 'Planned'}</span>
+            </div>
+        </div>
+    `;
+}
 
 function renderPins() {
     if (!pinBoard) return;
 
-    pinBoard.innerHTML = pinBoardEntries.map(pin => {
-        const photos = pin.images && pin.images.length ? pin.images : (pin.image ? [pin.image] : []);
-        
-        let galleryHtml = '';
-        if (photos.length > 0) {
-            galleryHtml = `
-                <div class="polaroid-gallery">
-                    ${photos.slice(0, 3).map(src => `<div class="polaroid-preview-card"><img src="${src}" alt="Memory"></div>`).join('')}
+    const view = getCurrentCategoryView();
+    document.body.dataset.view = view;
+    const memories = pinBoardEntries.filter(p => p.type === 'memory' || p.completed);
+    const upcoming = pinBoardEntries.filter(p => p.type === 'event' && !p.completed);
+    const wishlist = pinBoardEntries.filter(p => p.type === 'next-up' && !p.completed);
+
+    // Toggle the bottom planner/tabs so category pages feel like clean, dedicated pages
+    const pageNav = document.querySelector('.page-nav');
+    const mainContent = document.querySelector('.main-content');
+    if (pageNav && mainContent) {
+        const isHome = view === 'home';
+        pageNav.classList.toggle('hidden', !isHome);
+        mainContent.classList.toggle('hidden', !isHome);
+    }
+
+    if (view === 'home') {
+        // LANDING PAGE: 2 from each category + 3 scrap paper links
+        pinBoard.className = ''; // Remove single-grid class on home view
+        pinBoard.innerHTML = `
+            <div class="pin-board-columns">
+                <div class="board-column">
+                    <h2 class="board-col-title">Past Memories</h2>
+                    ${memories.slice(0, 2).map(buildPinCardHtml).join('') || '<p class="empty-state" style="color:white;">No memories yet</p>'}
                 </div>
-            `;
-        }
-
-        const scoreText = pin.rating !== null 
-            ? `Rating: ${pin.rating.toFixed(1)}/10` 
-            : 'Unrated';
-
-        const albumBtn = pin.albumUrl 
-            ? `<a href="${pin.albumUrl}" target="_blank" rel="noopener noreferrer" class="ghost-btn album-chip" onclick="event.stopPropagation()">Google Photos</a>` 
-            : '';
-
-        return `
-            <div class="pin-card post-it ${pin.type} ${pin.completed ? 'done' : ''}" data-id="${pin.id}" tabindex="0">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span class="bubble-tag">${escapeHtml(pin.tag)}</span>
-                    ${albumBtn}
+                <div class="board-column">
+                    <h2 class="board-col-title">Upcoming</h2>
+                    ${upcoming.slice(0, 2).map(buildPinCardHtml).join('') || '<p class="empty-state" style="color:white;">Nothing upcoming</p>'}
                 </div>
-                ${galleryHtml}
-                <h3>${escapeHtml(pin.title)}</h3>
-                <p>${escapeHtml(pin.details)}</p>
-                <div class="pin-meta">
-                    <span>${pin.liked ? 'Favorited' : 'Not favorited'}</span>
-                    <span>${scoreText}</span>
-                    <span>${pin.completed ? 'Completed' : 'Planned'}</span>
+                <div class="board-column">
+                    <h2 class="board-col-title">Wishlist</h2>
+                    ${wishlist.slice(0, 2).map(buildPinCardHtml).join('') || '<p class="empty-state" style="color:white;">Wishlist is empty</p>'}
                 </div>
             </div>
-        `;
-    }).join('');
 
+            <div class="scrap-nav">
+                <a href="#memories" class="scrap-link">All Past Memories (${memories.length}) →</a>
+                <a href="#upcoming" class="scrap-link">All Upcoming (${upcoming.length}) →</a>
+                <a href="#wishlist" class="scrap-link">All Wishlist (${wishlist.length}) →</a>
+            </div>
+        `;
+    } else {
+        // DEDICATED CATEGORY PAGE: Full endless scroll for the chosen category
+        const config = {
+            memories: { title: 'All Past Memories', items: memories },
+            upcoming: { title: 'All Upcoming Adventures', items: upcoming },
+            wishlist: { title: 'The Full Wishlist', items: wishlist }
+        }[view];
+
+        pinBoard.className = '';
+        pinBoard.innerHTML = `
+            <div class="category-view-header">
+                <a href="#home" class="scrap-link" style="font-size: 20px; padding: 8px 16px;">← Back to Board</a>
+                <h2 class="board-col-title" style="margin: 0;">${config.title}</h2>
+                <div style="width: 120px;"></div>
+            </div>
+            <div class="pin-board">
+                ${config.items.map(buildPinCardHtml).join('') || '<p class="empty-state" style="color:white;">Nothing here yet!</p>'}
+            </div>
+        `;
+    }
+
+    // Re-attach click listeners to open the Edit Modal
     pinBoard.querySelectorAll('.pin-card').forEach(card => {
         card.addEventListener('click', () => {
             openPinModal(card.dataset.id);
         });
     });
+
+    
 }
+
+// Re-render automatically when clicking scrap paper links or browser Back/Forward
+window.addEventListener('hashchange', renderPins);
 
 // --- Render Reviews Wall ---
 const reviewList = document.getElementById('review-list');
@@ -773,6 +842,38 @@ function handleRemoteActivities(snap) {
         isApplyingRemoteActivities = false;
     }
 }
+
+function setWeatherTheme(theme) {
+    document.body.classList.remove('theme-day', 'theme-rain', 'theme-night', 'theme-afternoon');
+    document.body.classList.add(`theme-${theme}`);
+}
+
+async function syncWeatherTheme() {
+    try {
+        // Coordinates set for Johannesburg (change if needed)
+        const url = 'https://api.open-meteo.com/v1/forecast?latitude=-26.2041&longitude=28.0473&current=weather_code,is_day,wind_speed_10m';
+        const res = await fetch(url);
+        const { current } = await res.json();
+
+        const hour = new Date().getHours();
+        const isRain = [51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99].includes(current.weather_code);
+
+        if (current.is_day === 0) {
+            setWeatherTheme('night');
+        } else if (isRain) {
+            setWeatherTheme('rain');
+        } else if (hour >= 15 && hour < 19 || current.wind_speed_10m > 20) {
+            setWeatherTheme('afternoon');
+        } else {
+            setWeatherTheme('day');
+        }
+    } catch (e) {
+        setWeatherTheme('day'); // Safe fallback
+    }
+}
+
+syncWeatherTheme();
+
 
 renderPins();
 renderActivities();
