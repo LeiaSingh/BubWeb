@@ -47,6 +47,8 @@ const activitiesRef = db.ref('activities');
 let isAuthorized = false;
 let isApplyingRemotePins = false;
 let isApplyingRemoteActivities = false;
+let pinsSyncReady = false;
+let activitiesSyncReady = false;
 
 const DEFAULT_PIN_BOARD = [
     {
@@ -118,8 +120,11 @@ function loadActivities() {
 
 function saveActivities() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
-    if (isAuthorized && !isApplyingRemoteActivities) {
-        activitiesRef.set(activities).catch(e => console.warn(e));
+    if (isAuthorized && activitiesSyncReady && !isApplyingRemoteActivities) {
+        activitiesRef.set(activities).catch((error) => {
+            console.error('Could not sync activities to Firebase:', error);
+            alert('Your change is saved on this device, but could not sync to Firebase. Check your connection or sign-in.');
+        });
     }
 }
 
@@ -135,8 +140,11 @@ function loadPins() {
 
 function savePins() {
     localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinBoardEntries));
-    if (isAuthorized && !isApplyingRemotePins) {
-        pinsRef.set(pinBoardEntries).catch(e => console.warn(e));
+    if (isAuthorized && pinsSyncReady && !isApplyingRemotePins) {
+        pinsRef.set(pinBoardEntries).catch((error) => {
+            console.error('Could not sync pin board to Firebase:', error);
+            alert('Your change is saved on this device, but could not sync to Firebase. Check your connection or sign-in.');
+        });
     }
 }
 
@@ -787,6 +795,8 @@ authPersistenceReady.then(() => auth.onAuthStateChanged((user) => {
         if (addPinButton) addPinButton.classList.remove('nik-theme', 'lei-theme');
         if (logoutBtn) logoutBtn.style.display = 'none';
         if (authPrompt) authPrompt.classList.remove('hidden');
+        pinsSyncReady = false;
+        activitiesSyncReady = false;
         detachDatabaseListeners();
         console.info('No Firebase Auth user is signed in.');
     }
@@ -818,11 +828,15 @@ function detachDatabaseListeners() {
 
 function handleRemotePins(snap) {
     const data = snap.val();
-    if (!data) return;
+    if (!data) {
+        pinsSyncReady = true;
+        return;
+    }
     isApplyingRemotePins = true;
     try {
         pinBoardEntries = (Array.isArray(data) ? data : Object.values(data)).map(normalizePin);
         localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(pinBoardEntries));
+        pinsSyncReady = true;
         renderPins();
         renderReviews();
     } finally {
@@ -832,11 +846,15 @@ function handleRemotePins(snap) {
 
 function handleRemoteActivities(snap) {
     const data = snap.val();
-    if (!data) return;
+    if (!data) {
+        activitiesSyncReady = true;
+        return;
+    }
     isApplyingRemoteActivities = true;
     try {
         activities = Array.isArray(data) ? data : Object.values(data);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
+        activitiesSyncReady = true;
         renderActivities();
     } finally {
         isApplyingRemoteActivities = false;
