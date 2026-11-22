@@ -31,6 +31,7 @@ let activeActivityId = null;
 const firebaseConfig = {
     apiKey: "AIzaSyBxkrNYSVqVf2_7wyHl6sA7i6MQ_OY69cg",
     authDomain: "guide-to-the-outside.firebaseapp.com",
+    databaseURL: "https://guide-to-the-outside-default-rtdb.firebaseio.com",
     projectId: "guide-to-the-outside",
     storageBucket: "guide-to-the-outside.firebasestorage.app",
     messagingSenderId: "242577301245",
@@ -830,6 +831,15 @@ function handleRemotePins(snap) {
     const data = snap.val();
     if (!data) {
         pinsSyncReady = true;
+        if (isAuthorized && pinBoardEntries.length) {
+            isApplyingRemotePins = true;
+            pinsRef.set(pinBoardEntries).catch((error) => {
+                console.error('Could not initialize pin board in Firebase:', error);
+                alert('Firebase could not initialize the shared pin board. Check the database rules and connection.');
+            }).finally(() => {
+                isApplyingRemotePins = false;
+            });
+        }
         return;
     }
     isApplyingRemotePins = true;
@@ -848,6 +858,15 @@ function handleRemoteActivities(snap) {
     const data = snap.val();
     if (!data) {
         activitiesSyncReady = true;
+        if (isAuthorized) {
+            isApplyingRemoteActivities = true;
+            activitiesRef.set(activities).catch((error) => {
+                console.error('Could not initialize activities in Firebase:', error);
+                alert('Firebase could not initialize the shared activity list. Check the database rules and connection.');
+            }).finally(() => {
+                isApplyingRemoteActivities = false;
+            });
+        }
         return;
     }
     isApplyingRemoteActivities = true;
