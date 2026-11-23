@@ -908,8 +908,23 @@ async function syncWeatherTheme() {
         setWeatherTheme('night'); // Safe fallback
     }
 }
+const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-syncWeatherTheme();
+function applyAutoTheme() {
+    if (darkModeQuery.matches) {
+        // Device/browser is in dark mode -> force your custom night palette
+        setWeatherTheme('night');
+    } else {
+        // Device/browser is in light mode -> let live weather & time decide
+        syncWeatherTheme();
+    }
+}
+
+// Automatically switch if you toggle dark mode while the page is open
+darkModeQuery.addEventListener('change', applyAutoTheme);
+
+// Run on page load
+applyAutoTheme();
 
 
 renderPins();

@@ -143,7 +143,7 @@ body.theme-night .header-art {
 }
 
 /* Softly dimmed, warm paper cards (instead of muddy dark boxes) */
-body.theme-night .post-it.memory  { background: #a7867b; border-color: #6b6360; }
+body.theme-night .post-it.memory  { background: #af7973; border-color: #6b6360; }
 body.theme-night .post-it.event   { background: #99a28d; border-color: #636b5a; }
 body.theme-night .post-it.next-up { background: #7f8e9f; border-color: #555f6a; }
 
