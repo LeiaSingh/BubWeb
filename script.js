@@ -905,7 +905,7 @@ async function syncWeatherTheme() {
             setWeatherTheme('day');
         }
     } catch (e) {
-        setWeatherTheme('day'); // Safe fallback
+        setWeatherTheme('night'); // Safe fallback
     }
 }
 

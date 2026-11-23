@@ -126,7 +126,124 @@ body {
 body.theme-day .hero       { background-color: transparent; }
 body.theme-afternoon .hero { background-color: rgba(255, 198, 130, 0.25); }
 body.theme-rain .hero      { background-color: rgba(110, 135, 160, 0.35); }
-body.theme-night .hero     { background-color: rgba(20, 28, 52, 0.75); }
+/* Deep twilight journal background */
+body.theme-night {
+    background-color: #192030;
+    background-image: radial-gradient(rgba(235, 225, 205, 0.16) 1.25px, transparent 0);
+    color: #f4efe6;
+}
+
+body.theme-night .hero {
+    background-color: transparent;
+}
+
+/* Gives the blue hand-drawn title a soft moonlit glow so it pops against the night sky */
+body.theme-night .header-art {
+    filter: drop-shadow(0 0 10px rgba(217, 252, 255, 0.75)) brightness(0.99);
+}
+
+/* Softly dimmed, warm paper cards (instead of muddy dark boxes) */
+body.theme-night .post-it.memory  { background: #a7867b; border-color: #6b6360; }
+body.theme-night .post-it.event   { background: #99a28d; border-color: #636b5a; }
+body.theme-night .post-it.next-up { background: #7f8e9f; border-color: #555f6a; }
+
+/* Keep dark ink on the paper cards for crisp readability */
+body.theme-night .pin-card h3,
+body.theme-night .pin-card p,
+body.theme-night .pin-meta {
+    color: #23201d;
+}
+
+body.theme-night .board-col-title {
+    color: #f7f2e8;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+/* Dim the clouds slightly so they feel like night clouds */
+body.theme-night .cloud {
+    opacity: 0.45;
+    filter: brightness(0.75) hue-rotate(10deg);
+}
+
+/* Night Mode: Main Planner & Reviews Block */
+body.theme-night .main-content {
+    background: #212c3f;
+    border-color: #32415a;
+    color: #f4efe6;
+}
+
+body.theme-night .bubble,
+body.theme-night .activity-card,
+body.theme-night .review-card {
+    background: #28354c;
+    border-color: #3a4b68;
+    color: #f4efe6;
+}
+
+body.theme-night .field,
+body.theme-night .helper-text,
+body.theme-night .review-meta {
+    color: #d6cfc2;
+}
+
+/* Overrides the inline grey text inside activity cards */
+body.theme-night .activity-card p,
+body.theme-night .activity-card div,
+body.theme-night .review-card p {
+    color: #d6cfc2 !important;
+}
+
+/* Inputs + light calendar/clock icons */
+body.theme-night .main-content .field input,
+body.theme-night .main-content .field select,
+body.theme-night .main-content .field textarea {
+    background: #1b2434;
+    border-color: #3e506e;
+    color: #f4efe6;
+    color-scheme: dark; /* Keeps the date & time icons light and visible */
+}
+
+body.theme-night .main-content .field input::placeholder,
+body.theme-night .main-content .field textarea::placeholder {
+    color: #8b9bb4;
+}
+
+/* Buttons inside the night block */
+body.theme-night .main-content .save-btn {
+    background: #466186;
+    color: #f4efe6;
+}
+
+body.theme-night .main-content .save-btn:hover {
+    background: #55749e;
+}
+
+body.theme-night .main-content .ghost-btn {
+    background: #1e283a;
+    border-color: #4a5d7c;
+    color: #f4efe6;
+}
+
+body.theme-night .main-content .ghost-btn:hover {
+    background: #32415a;
+}
+
+/* Tabs just above the block */
+body.theme-night .page-nav {
+    border-bottom-color: #32415a;
+}
+
+body.theme-night .nav-btn {
+    color: #9fb0c9;
+}
+
+body.theme-night .nav-btn.active {
+    color: #f4efe6;
+}
+
+body.theme-night .nav-btn.active::after {
+    background-color: #f4efe6;
+}
 
 /* Keeps the action bar and Post-It board floating ON TOP of the hills */
 .pin-actions,
