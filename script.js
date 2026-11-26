@@ -121,6 +121,7 @@ function normalizePin(pin) {
         letterboxdKey: pin.letterboxdKey || '',
         ticketImage: pin.ticketImage || '',
         customTitle: pin.customTitle || '',
+        filmLookupDone: !!pin.filmLookupDone,
         showDate: /^\d{4}-\d{2}-\d{2}$/.test(pin.showDate || '') ? pin.showDate : '',
         showTime: /^\d{2}:\d{2}/.test(pin.showTime || '') ? pin.showTime.slice(0, 5) : '',
         lat: Number.isFinite(Number(pin.lat)) && pin.lat !== null && pin.lat !== '' ? Number(pin.lat) : null,
@@ -820,12 +821,58 @@ const pinFilmFindPoster = document.getElementById('pin-film-find-poster');
 const pinFilmPosterStatus = document.getElementById('pin-film-poster-status');
 
 // Wikipedia's free API has film posters and allows browser requests (no key)
+// Wikidata (free, no key) knows each film's Letterboxd page and release date
+async function filmDetailsFromWikidata(qid) {
+    const details = { letterboxdSlug: '', year: '' };
+    if (!qid) return details;
+    try {
+        const url = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${qid}&props=claims&format=json&origin=*`;
+        const claims = (await (await fetch(url)).json()).entities[qid].claims || {};
+        details.letterboxdSlug = claims.P6127?.[0]?.mainsnak?.datavalue?.value || '';
+        const released = claims.P577?.[0]?.mainsnak?.datavalue?.value?.time || '';
+        details.year = (released.match(/\d{4}/) || [''])[0];
+    } catch (err) { /* poster and year still work without it */ }
+    return details;
+}
+
+// Fill only what's empty, so anything typed by hand always wins
+async function autoFillFilm(pin) {
+    if (pin.category !== 'film' || (pin.posterUrl && pin.letterboxdUrl && pin.filmYear)) return false;
+    const found = await findFilmOnWikipedia(pin.title, pin.filmYear);
+    pin.filmLookupDone = true;
+    if (!found) return true;
+    if (found.title && found.title !== pin.title) pin.title = found.title;
+    if (!pin.posterUrl) pin.posterUrl = found.poster;
+    if (!pin.letterboxdUrl && found.letterboxdUrl) pin.letterboxdUrl = found.letterboxdUrl;
+    if (!pin.filmYear && found.year) pin.filmYear = found.year;
+    return true;
+}
+
+// Films added from either phone get their details the next time anyone opens BubWeb
+let filmAutoFillStarted = false;
+async function autoFillMissingFilms() {
+    if (filmAutoFillStarted || !isAuthorized || !pinsSyncReady) return;
+    filmAutoFillStarted = true;
+    const todo = pinBoardEntries
+        .filter(p => p.category === 'film' && !p.filmLookupDone && (!p.posterUrl || !p.letterboxdUrl || !p.filmYear))
+        .slice(0, 8);
+    let changed = false;
+    for (const pin of todo) {
+        changed = (await autoFillFilm(pin)) || changed;
+    }
+    if (changed) {
+        savePins();
+        renderPins();
+        renderReviews();
+    }
+}
+
 async function findFilmOnWikipedia(title, year) {
-    const candidates = [
-        year ? `${title} (${year} film)` : '',
-        `${title} (film)`,
-        title
-    ].filter(Boolean);
+    // No year given: try this year's and next year's releases first (watchlists are mostly new films)
+    const thisYear = new Date().getFullYear();
+    const candidates = (year
+        ? [`${title} (${year} film)`, `${title} (film)`, title]
+        : [`${title} (${thisYear} film)`, `${title} (${thisYear + 1} film)`, `${title} (film)`, title]);
     for (const candidate of candidates) {
         try {
             const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(candidate.replace(/ /g, '_'))}`);
@@ -833,9 +880,12 @@ async function findFilmOnWikipedia(title, year) {
             const page = await res.json();
             const image = (page.originalimage || page.thumbnail || {}).source;
             if (page.type === 'standard' && /film|movie/i.test(page.description || '') && image) {
+                const extra = await filmDetailsFromWikidata(page.wikibase_item);
                 return {
+                    title: page.title.replace(/\s*\((?:\d{4} )?(?:[\w-]+ )?film\)$/i, ''),
                     poster: image.split('?')[0],
-                    year: ((page.description || '').match(/\b(19|20)\d{2}\b/) || [''])[0],
+                    year: ((page.description || '').match(/\b(19|20)\d{2}\b/) || [''])[0] || extra.year,
+                    letterboxdUrl: extra.letterboxdSlug ? `https://letterboxd.com/film/${extra.letterboxdSlug}/` : '',
                     pageUrl: page.content_urls?.desktop?.page || ''
                 };
             }
@@ -857,8 +907,10 @@ pinFilmFindPoster.addEventListener('click', async () => {
         return;
     }
     pinFilmPoster.value = found.poster;
+    if (found.title) pinTitleInput.value = found.title;
     if (!pinFilmYear.value && found.year) pinFilmYear.value = found.year;
-    pinFilmPosterStatus.innerHTML = `<img class="poster-preview" src="${safeUrl(found.poster)}" alt="Poster"> Found it. Tap Save Changes`;
+    if (!pinFilmLetterboxd.value && found.letterboxdUrl) pinFilmLetterboxd.value = found.letterboxdUrl;
+    pinFilmPosterStatus.innerHTML = `<img class="poster-preview" src="${safeUrl(found.poster)}" alt="Poster"> Found ${escapeHtml(found.title)}${found.year ? ` (${escapeHtml(found.year)})` : ''}. Tap Save Changes`;
 });
 let currentFoodLocation = null;
 
@@ -1094,6 +1146,16 @@ pinForm.addEventListener('submit', (e) => {
     pin.ticketImage = currentTicketImage;
     pin.showDate = pinFilmShowDate.value;
     pin.customTitle = pinFilmCustomTitle.value.trim();
+    if (pin.category === 'film' && (!pin.posterUrl || !pin.letterboxdUrl || !pin.filmYear)) {
+        pin.filmLookupDone = false;
+        autoFillFilm(pin).then(changed => {
+            if (changed) {
+                savePins();
+                renderPins();
+                renderReviews();
+            }
+        });
+    }
     pin.showTime = pinFilmShowTime.value;
     pin.lat = currentFoodLocation ? currentFoodLocation.lat : null;
     pin.lng = currentFoodLocation ? currentFoodLocation.lng : null;
@@ -1201,7 +1263,22 @@ addPinForm.addEventListener('submit', (e) => {
     addPinForm.reset();
     addPinModal.classList.add('hidden');
     // Films and food have extra details (poster, place...), so open the full editor straight away
-    if (category !== 'adventure') openPinModal(newId);
+    if (category === 'film') {
+        const pin = pinBoardEntries.find(p => p.id === newId);
+        autoFillFilm(pin).then(changed => {
+            if (changed) {
+                savePins();
+                renderPins();
+                renderReviews();
+            }
+            openPinModal(newId);
+            pinFilmPosterStatus.textContent = pin.posterUrl
+                ? `Found ${pin.title}${pin.filmYear ? ` (${pin.filmYear})` : ''}. Wrong film? Fix the title or year and tap Find poster.`
+                : 'Couldn\'t find this film automatically. Check the title and tap Find poster.';
+        });
+    } else if (category !== 'adventure') {
+        openPinModal(newId);
+    }
 });
 
 // --- Scheduled Activity Scoring Logic ---
@@ -1590,6 +1667,7 @@ function handleRemotePins(snap) {
         isApplyingRemotePins = false;
     }
     importLetterboxd();
+    autoFillMissingFilms();
 }
 
 function handleRemoteActivities(snap) {
