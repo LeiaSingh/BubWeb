@@ -509,10 +509,8 @@ function renderCategoryPages() {
 
 // --- BubFood map (Leaflet + OpenStreetMap, no API key needed) ---
 
-function foodTileUrl() {
-    const style = document.body.classList.contains('theme-night') ? 'dark_all' : 'rastertiles/voyager';
-    return `https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`;
-}
+// Standard OpenStreetMap tiles: free, no key or account. Night mode is a CSS filter on the tiles.
+const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 function renderFoodMap() {
     if (!foodMapEl || typeof L === 'undefined') return;
@@ -523,14 +521,13 @@ function renderFoodMap() {
         foodMap = L.map(foodMapEl, { scrollWheelZoom: false }).setView(JOBURG, 11);
         foodMapLayer = L.layerGroup().addTo(foodMap);
     }
-    const url = foodTileUrl();
-    if (!foodTileLayer || foodTileLayer._url !== url) {
-        if (foodTileLayer) foodTileLayer.remove();
-        foodTileLayer = L.tileLayer(url, {
+    if (!foodTileLayer) {
+        foodTileLayer = L.tileLayer(OSM_TILES, {
             maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(foodMap);
     }
+    foodMapEl.classList.toggle('night', document.body.classList.contains('theme-night'));
     foodMap.invalidateSize();
     foodMapLayer.clearLayers();
 
@@ -731,14 +728,39 @@ function renderTicketPreview() {
 }
 
 pinTicketTrigger.addEventListener('click', () => pinTicketInput.click());
+// Keeps the ticket's proportions (the thumbnail helper squashes tall photos)
+function loadTicketImage(file, onDone, onError) {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+        const scale = Math.min(1, 900 / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        onDone(canvas.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = () => {
+        URL.revokeObjectURL(url);
+        onError();
+    };
+    img.src = url;
+}
+
 pinTicketInput.addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    compressImage(file, (base64) => {
-        currentTicketImage = base64;
-        renderTicketPreview();
-    });
     pinTicketInput.value = '';
+    if (!file) return;
+    pinTicketTrigger.textContent = 'Loading ticket…';
+    loadTicketImage(file, (dataUrl) => {
+        currentTicketImage = dataUrl;
+        renderTicketPreview();
+        pinTicketTrigger.textContent = 'Ticket added. Tap Save Changes';
+    }, () => {
+        renderTicketPreview();
+        alert('That photo couldn\'t be read here (often an iPhone HEIC photo on a computer). Try a screenshot of the ticket, or a JPG/PNG.');
+    });
 });
 pinTicketRemove.addEventListener('click', () => {
     currentTicketImage = '';
