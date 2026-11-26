@@ -623,16 +623,63 @@ async function searchFoursquare(text) {
     return (data.results || []).map(p => ({ ...p, area: p.area === 'EGoli' ? 'Johannesburg' : p.area }));
 }
 
-// Is this result really the place we typed? (stops "Afters" from landing on "Aftershock")
-function placeNameMatches(query, name) {
-    const words = t => String(t || '').toLowerCase()
+// --- Matching what we typed to what the directory returns ---
+const PLACE_STOP_WORDS = ['and', 'the', 'of', 'le', 'la', 'les', 'el', 'de', 'di', 'du', 'restaurant', 'cafe', 'bar', 'jhb', 'joburg', 'johannesburg'];
+
+function placeWords(text) {
+    return String(text || '').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/&/g, ' and ').replace(/[^a-z0-9 ]/g, ' ')
-        .split(/\s+/).filter(w => w && !['and', 'the', 'restaurant', 'cafe', 'bar', 'jhb', 'johannesburg'].includes(w));
-    const wanted = words(query.split(',')[0]);
-    const have = words(name);
-    if (!wanted.length || !have.length) return false;
-    const hits = wanted.filter(w => have.includes(w)).length;
-    return hits / wanted.length >= 0.6 || (hits >= 1 && wanted.length === 1);
+        .split(/\s+/).filter(w => w && !PLACE_STOP_WORDS.includes(w));
+}
+
+// 0 = not this place. Name words count double; extra words (street, suburb) pick the right branch
+function placeMatchScore(query, place) {
+    const wanted = placeWords(query);
+    const nameWords = placeWords(place.name);
+    const locWords = placeWords(`${place.address || ''} ${place.area || ''}`);
+    if (!wanted.length || !nameWords.length) return 0;
+    let nameHits = 0;
+    let locHits = 0;
+    wanted.forEach(w => {
+        if (nameWords.includes(w)) nameHits++;
+        else if (locWords.includes(w)) locHits++;
+    });
+    if (!nameHits) return 0;
+    // We type the name first ("Le Pizze Greenside"), so the first word must be in the place's name
+    if (!nameWords.includes(wanted[0])) return 0;
+    const wholeNameMatched = nameHits >= nameWords.length;
+    const enoughOfQuery = (nameHits + locHits) / wanted.length >= 0.6;
+    if (!wholeNameMatched && !enoughOfQuery) return 0;
+    return nameHits * 2 + locHits + (wholeNameMatched ? 1 : 0);
+}
+
+function placeNameMatches(query, name) {
+    return placeMatchScore(query, { name }) > 0;
+}
+
+// Try what we typed, then shorter versions ("Al Hamra Church Street" -> "Al Hamra"), and keep the best fit
+async function searchPlacesSmart(query) {
+    const words = query.replace(/,/g, ' ').split(/\s+/).filter(Boolean);
+    const tries = [query];
+    for (let n = words.length - 1; n >= 1 && tries.length < 4; n--) tries.push(words.slice(0, n).join(' '));
+    const seen = new Map();
+    for (const q of tries) {
+        (await searchFoursquare(q)).forEach(p => {
+            const key = p.fsqId || `${p.name}|${p.lat}|${p.lng}`;
+            if (!seen.has(key)) seen.set(key, p);
+        });
+        const ranked = [...seen.values()]
+            .map(p => ({ p, score: placeMatchScore(query, p) }))
+            .filter(x => x.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .map(x => x.p);
+        if (ranked.length) {
+            const others = [...seen.values()].filter(p => !ranked.includes(p));
+            return { places: [...ranked, ...others].slice(0, 6), matched: true };
+        }
+    }
+    return { places: [...seen.values()].slice(0, 6), matched: false };
 }
 
 // Google Maps / share.google links: location if the link has one, otherwise the place's name
@@ -1211,12 +1258,12 @@ async function findFoodOnMap(place) {
     renderPlaceChoices([]);
     let places = [];
     try {
-        places = await searchFoursquare(place);
-        const matchIndex = places.findIndex(p => placeNameMatches(place, p.name));
-        if (matchIndex >= 0) {
-            choosePlace(places[matchIndex]);
-            renderPlaceChoices(places, matchIndex);
-            return places[matchIndex];
+        const search = await searchPlacesSmart(place);
+        places = search.places;
+        if (search.matched) {
+            choosePlace(places[0]);
+            renderPlaceChoices(places, 0);
+            return places[0];
         }
     } catch (err) {
         console.warn('Place search failed, falling back to OpenStreetMap:', err);
