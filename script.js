@@ -44,6 +44,7 @@ const auth = firebase.auth();
 const db = firebase.database();
 const pinsRef = db.ref('pinBoardEntries');
 const activitiesRef = db.ref('activities');
+const letterboxdDismissedRef = db.ref('letterboxdDismissed');
 
 let isAuthorized = false;
 let isApplyingRemotePins = false;
@@ -116,7 +117,8 @@ function normalizePin(pin) {
         foodPlace: pin.foodPlace || '',
         foodDish: pin.foodDish || '',
         foodPrice: pin.foodPrice || '',
-        mapUrl: pin.mapUrl || ''
+        mapUrl: pin.mapUrl || '',
+        letterboxdKey: pin.letterboxdKey || ''
     };
 }
 
@@ -647,6 +649,11 @@ pinForm.addEventListener('submit', (e) => {
 pinRemoveButton.addEventListener('click', () => {
     if (!activePinId) return;
     if (confirm('Remove this adventure from the pin board?')) {
+        const removed = pinBoardEntries.find(p => p.id === activePinId);
+        if (removed && removed.letterboxdKey) {
+            // Remember it, so the Letterboxd sync doesn't bring it back
+            letterboxdDismissedRef.child(removed.letterboxdKey).set(true).catch(() => {});
+        }
         pinBoardEntries = pinBoardEntries.filter(p => p.id !== activePinId);
         savePins();
         renderPins();
@@ -965,6 +972,102 @@ function detachDatabaseListeners() {
     databaseListenersAttached = false;
 }
 
+// --- Letterboxd sync ---
+// A GitHub Action saves both diary feeds to data/letterboxd.json every few hours.
+// When Nik and Lei both log the same film within a week, it becomes one BubFilm pin.
+const LETTERBOXD_MATCH_DAYS = 7;
+let letterboxdImportStarted = false;
+
+function letterboxdFilmKey(entry) {
+    const base = entry.tmdbId || `${entry.filmTitle}-${entry.filmYear}`;
+    return String(base).toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+}
+
+function groupLetterboxdWatches(entries) {
+    const byFilm = new Map();
+    [...entries]
+        .sort((a, b) => a.watchedDate.localeCompare(b.watchedDate))
+        .forEach(entry => {
+            const filmKey = letterboxdFilmKey(entry);
+            const watches = byFilm.get(filmKey) || [];
+            let watch = watches[watches.length - 1];
+            const daysApart = watch
+                ? (new Date(entry.watchedDate) - new Date(watch.date)) / 86400000
+                : Infinity;
+            if (!watch || daysApart > LETTERBOXD_MATCH_DAYS) {
+                watch = { key: `${filmKey}-${entry.watchedDate}`, date: entry.watchedDate, film: entry, nik: null, lei: null };
+                watches.push(watch);
+            }
+            if (entry.who === 'nik' || entry.who === 'lei') watch[entry.who] = entry;
+            byFilm.set(filmKey, watches);
+        });
+    return [...byFilm.values()].flat();
+}
+
+async function importLetterboxd() {
+    if (letterboxdImportStarted || !isAuthorized || !pinsSyncReady) return;
+    letterboxdImportStarted = true;
+
+    let entries = [];
+    try {
+        const res = await fetch('data/letterboxd.json', { cache: 'no-store' });
+        if (!res.ok) return;
+        entries = (await res.json()).entries || [];
+    } catch (e) {
+        return;
+    }
+    if (!entries.length) return;
+
+    let dismissed = {};
+    try {
+        dismissed = (await letterboxdDismissedRef.once('value')).val() || {};
+    } catch (e) { /* carry on without it */ }
+
+    let changed = false;
+    groupLetterboxdWatches(entries).forEach(watch => {
+        if (!watch.nik || !watch.lei || dismissed[watch.key]) return;
+
+        let pin = pinBoardEntries.find(p => p.letterboxdKey === watch.key);
+        if (!pin) {
+            const film = watch.nik.poster ? watch.nik : watch.lei;
+            const watched = new Date(`${watch.date}T12:00:00`).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
+            pin = normalizePin({
+                id: `pin-lb-${watch.key}`,
+                letterboxdKey: watch.key,
+                category: 'film',
+                type: 'memory',
+                completed: true,
+                title: film.filmTitle,
+                details: `Movie date · ${watched}`,
+                filmYear: film.filmYear,
+                posterUrl: film.poster,
+                letterboxdUrl: film.filmUrl,
+                liked: watch.nik.liked && watch.lei.liked
+            });
+            pinBoardEntries.unshift(pin);
+            changed = true;
+        }
+
+        // Only fill what's still empty, so edits made in BubWeb always win
+        if (pin.nikScore === null && watch.nik.rating) { pin.nikScore = watch.nik.rating * 2; changed = true; }
+        if (pin.leiScore === null && watch.lei.rating) { pin.leiScore = watch.lei.rating * 2; changed = true; }
+        if (!pin.review) {
+            const review = [
+                watch.nik.review ? `Nik: ${watch.nik.review}` : '',
+                watch.lei.review ? `Lei: ${watch.lei.review}` : ''
+            ].filter(Boolean).join('\n\n');
+            if (review) { pin.review = review; changed = true; }
+        }
+        Object.assign(pin, normalizePin(pin));
+    });
+
+    if (changed) {
+        savePins();
+        renderPins();
+        renderReviews();
+    }
+}
+
 function handleRemotePins(snap) {
     const data = snap.val();
     if (!data) {
@@ -990,6 +1093,7 @@ function handleRemotePins(snap) {
     } finally {
         isApplyingRemotePins = false;
     }
+    importLetterboxd();
 }
 
 function handleRemoteActivities(snap) {
