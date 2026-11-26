@@ -681,6 +681,23 @@ function renderCategoryPages() {
 
 // --- BubFood map (Leaflet + OpenStreetMap, no API key needed) ---
 
+// Heart-shaped pins: filled pink for places we've been (with the BubScore), outlined for want-to-try
+function heartIcon(kind, label) {
+    return L.divIcon({
+        className: '',
+        html: `
+            <div class="heart-pin ${kind}">
+                <svg viewBox="0 0 32 30" aria-hidden="true">
+                    <path d="M16 29 C16 29 2 19.5 2 10.2 C2 5.6 5.6 2 10 2 C12.6 2 14.9 3.3 16 5.3 C17.1 3.3 19.4 2 22 2 C26.4 2 30 5.6 30 10.2 C30 19.5 16 29 16 29 Z"/>
+                </svg>
+                <span>${escapeHtml(label)}</span>
+            </div>`,
+        iconSize: [40, 38],
+        iconAnchor: [20, 37],
+        popupAnchor: [0, -34]
+    });
+}
+
 // Standard OpenStreetMap tiles: free, no key or account. Night mode is a CSS filter on the tiles.
 const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
@@ -746,16 +763,9 @@ function renderFoodMap() {
 
     spots.forEach(pin => {
         const visited = isFoodVisited(pin);
-        const label = visited && pin.rating !== null ? pin.rating.toFixed(1) : (visited ? '✓' : '♡');
         const marker = L.marker([pin.lat, pin.lng], {
             title: pin.title,
-            icon: L.divIcon({
-                className: '',
-                html: `<div class="food-marker ${visited ? 'been' : 'want'}"><span>${escapeHtml(label)}</span></div>`,
-                iconSize: [36, 36],
-                iconAnchor: [18, 36],
-                popupAnchor: [0, -34]
-            })
+            icon: heartIcon(visited ? 'been' : 'want', visited && pin.rating !== null ? pin.rating.toFixed(1) : '')
         });
         const popup = document.createElement('div');
         popup.className = 'food-popup';
@@ -1166,12 +1176,7 @@ function setPickerLocation(latlng, label) {
     if (!pickerMarker) {
         pickerMarker = L.marker(latlng, {
             draggable: true,
-            icon: L.divIcon({
-                className: '',
-                html: '<div class="food-marker been"><span>📍</span></div>',
-                iconSize: [36, 36],
-                iconAnchor: [18, 36]
-            })
+            icon: heartIcon('been', '')
         }).addTo(pickerMap);
         pickerMarker.on('dragend', () => setPickerLocation(pickerMarker.getLatLng(), 'Moved. Tap Save Changes'));
     } else {
