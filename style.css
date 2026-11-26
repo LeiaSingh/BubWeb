@@ -1654,3 +1654,15 @@ body.theme-night .food-picker-map .leaflet-tile-pane {
     border-color: #e85d75;
     box-shadow: 0 0 0 2px rgba(232, 93, 117, 0.25);
 }
+
+/* Link-first food adding */
+.link-first {
+    padding: 12px;
+    border: 2px dashed #e85d75;
+    border-radius: 14px;
+    background: rgba(232, 93, 117, 0.06);
+}
+
+.link-first input {
+    font-size: 15px;
+}

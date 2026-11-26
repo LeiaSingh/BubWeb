@@ -295,8 +295,14 @@
                 <button id="add-pin-modal-close" class="pin-modal-close" type="button" aria-label="Close">×</button>
                 <h3 id="add-pin-modal-title">Create a new BubAdventure</h3>
                 <form id="add-pin-form" class="pin-form">
+                    <div class="field link-first hidden" id="new-pin-link-field">
+                        <span>Paste a Google Maps link</span>
+                        <input id="new-pin-link" type="url" inputmode="url" placeholder="From Google Maps: Share → Copy link">
+                        <span id="new-pin-link-status" class="photo-status">Fills in the name and drops the heart for you. Or just type the name below.</span>
+                    </div>
+
                     <label class="field">
-                        <span>Adventure name</span>
+                        <span id="new-pin-title-label">Adventure name</span>
                         <input id="new-pin-title" type="text" placeholder="e.g. Sunset picnic" required>
                     </label>
 
@@ -312,11 +318,6 @@
                             <option value="film">BubFilm</option>
                             <option value="food">BubFood</option>
                         </select>
-                    </label>
-
-                    <label class="field hidden" id="new-pin-link-field">
-                        <span>Google Maps link (optional, places the heart for you)</span>
-                        <input id="new-pin-link" type="url" placeholder="Paste a maps.app.goo.gl or share.google link">
                     </label>
 
                     <label class="field">

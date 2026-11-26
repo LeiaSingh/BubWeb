@@ -1621,13 +1621,49 @@ const newPinAlbum = document.getElementById('new-pin-album');
 const newPinCategory = document.getElementById('new-pin-category');
 const newPinLink = document.getElementById('new-pin-link');
 const newPinLinkField = document.getElementById('new-pin-link-field');
+const newPinLinkStatus = document.getElementById('new-pin-link-status');
+const newPinTitleLabel = document.getElementById('new-pin-title-label');
+const LINK_HINT = 'Fills in the name and drops the heart for you. Or just type the name below.';
+let newPinLinkInfo = null; // what the worker read from the pasted link
+
 function toggleNewPinLink() {
-    if (newPinLinkField) newPinLinkField.classList.toggle('hidden', newPinCategory.value !== 'food');
+    const food = newPinCategory.value === 'food';
+    if (newPinLinkField) newPinLinkField.classList.toggle('hidden', !food);
+    // With a link, the name and details aren't needed: the link fills them in
+    newPinTitle.required = !food;
+    newPinDetails.required = !food;
+    newPinTitleLabel.textContent = food ? 'Place name' : (newPinCategory.value === 'film' ? 'Film title' : 'Adventure name');
+    newPinTitle.placeholder = food ? 'e.g. Miyako Sushi (filled in from the link)' : 'e.g. Sunset picnic';
+    newPinDetails.placeholder = food ? 'e.g. Birthday dinner (optional)' : 'e.g. Next weekend';
+}
+
+async function readNewPinLink() {
+    const link = newPinLink.value.trim();
+    newPinLinkInfo = null;
+    if (!link) {
+        newPinLinkStatus.textContent = LINK_HINT;
+        return null;
+    }
+    newPinLinkStatus.textContent = 'Reading the link…';
+    try {
+        const info = await resolveMapLink(link);
+        newPinLinkInfo = info;
+        if (info.name && !newPinTitle.value.trim()) newPinTitle.value = info.name;
+        newPinLinkStatus.textContent = info.lat !== null
+            ? `📍 Got it: ${info.name || 'this place'}. The heart will go exactly there.`
+            : `Got the name (${info.name || '?'}), but this kind of link has no location, so we'll search for it.`;
+        return info;
+    } catch (err) {
+        newPinLinkStatus.textContent = 'Couldn\'t read that link. Copy it from the Google Maps app (Share → Copy link), or type the name.';
+        return null;
+    }
 }
 const addPinModalTitle = document.getElementById('add-pin-modal-title');
 
 function openAddPinModal(category = 'adventure') {
     newPinCategory.value = category;
+    newPinLinkInfo = null;
+    if (newPinLinkStatus) newPinLinkStatus.textContent = LINK_HINT;
     relabelStatusSelect(newPinType, category);
     toggleNewPinLink();
     if (category === 'food') newPinType.value = 'memory'; // most food pins are places we've been
@@ -1640,6 +1676,9 @@ newPinCategory.addEventListener('change', () => {
     addPinModalTitle.textContent = `Create a new ${CATEGORY_LABELS[newPinCategory.value]}`;
 });
 
+newPinLink.addEventListener('change', readNewPinLink);
+newPinLink.addEventListener('paste', () => setTimeout(readNewPinLink, 0));
+
 document.getElementById('add-pin-btn').addEventListener('click', () => openAddPinModal('adventure'));
 document.querySelectorAll('.add-category-btn').forEach(btn => {
     btn.addEventListener('click', () => openAddPinModal(btn.dataset.category));
@@ -1648,15 +1687,21 @@ document.getElementById('add-pin-modal-close').addEventListener('click', () => a
 document.getElementById('add-pin-cancel').addEventListener('click', () => addPinModal.classList.add('hidden'));
 document.querySelector('[data-close-add="true"]').addEventListener('click', () => addPinModal.classList.add('hidden'));
 
-addPinForm.addEventListener('submit', (e) => {
+addPinForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const title = newPinTitle.value.trim();
-    const details = newPinDetails.value.trim();
+    const linkTyped = (newPinLink?.value || '').trim();
+    if (newPinCategory.value === 'food' && linkTyped && !newPinLinkInfo) await readNewPinLink();
+    const linkInfo = newPinLinkInfo;
+    const title = newPinTitle.value.trim() || (linkInfo && linkInfo.name) || '';
+    const details = newPinDetails.value.trim() || (newPinCategory.value === 'food' ? (newPinType.value === 'next-up' ? 'Want to try' : 'Food date') : '');
     const type = newPinType.value;
     const albumUrl = (newPinAlbum?.value || '').trim() || DEFAULT_ALBUM_URL;
     const category = newPinCategory.value;
     const newLink = (newPinLink?.value || '').trim();
-    if (!title || !details) return;
+    if (!title || !details) {
+        if (category === 'food' && newPinLinkStatus) newPinLinkStatus.textContent = 'Paste a Google Maps link or type the place name first.';
+        return;
+    }
 
     const newId = `pin-${Date.now()}`;
     pinBoardEntries.unshift(normalizePin({
@@ -1680,6 +1725,8 @@ addPinForm.addEventListener('submit', (e) => {
     renderPins();
     renderReviews();
     addPinForm.reset();
+    newPinLinkInfo = null;
+    if (newPinLinkStatus) newPinLinkStatus.textContent = LINK_HINT;
     addPinModal.classList.add('hidden');
     // Films and food have extra details (poster, place...), so open the full editor straight away
     if (category === 'film') {
@@ -1705,7 +1752,15 @@ addPinForm.addEventListener('submit', (e) => {
         openPinModal(newId);
         renderLocateStatus('Finding it on the map…');
         // Pin it straight away; picking a different match or saving updates it
-        (newLink ? locateFromLink(newLink).then(ok => ok || findFoodOnMap(pin.foodPlace)) : findFoodOnMap(pin.foodPlace)).then(found => {
+        const placed = (linkInfo && linkInfo.lat !== null)
+            ? Promise.resolve().then(() => {
+                currentFoodLocation = { lat: linkInfo.lat, lng: linkInfo.lng };
+                closeFoodPicker();
+                renderLocateStatus(`Pinned ${linkInfo.name || 'it'} from your Google link.`);
+                return true;
+            })
+            : (newLink ? locateFromLink(newLink).then(ok => ok || findFoodOnMap(pin.foodPlace)) : findFoodOnMap(pin.foodPlace));
+        placed.then(found => {
             if (!found || !currentFoodLocation) return;
             pin.lat = currentFoodLocation.lat;
             pin.lng = currentFoodLocation.lng;
