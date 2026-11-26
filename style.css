@@ -1617,3 +1617,40 @@ body.theme-night .food-picker-map .leaflet-tile-pane {
     letter-spacing: -0.3px;
     z-index: 300; /* Leaflet lifts every SVG on the map to 200 */
 }
+
+/* --- Foursquare place choices --- */
+.place-results {
+    display: grid;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.place-results-label {
+    font-size: 12px;
+    color: #718096;
+}
+
+.place-choice {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.place-choice span {
+    font-size: 12px;
+    color: #718096;
+}
+
+.place-choice.chosen {
+    border-color: #e85d75;
+    box-shadow: 0 0 0 2px rgba(232, 93, 117, 0.25);
+}

@@ -612,6 +612,37 @@ function directionsUrl(pin) {
 
 // OpenStreetMap search (free, no key) to drop a spot on our map
 // Both use OpenStreetMap data, which misses many Joburg restaurants, so "Pick on map" is the fallback
+// --- Foursquare place search (free monthly credit, no card) ---
+// Much better restaurant coverage than OpenStreetMap. Leave empty to fall back to OpenStreetMap + Pick on map.
+const FOURSQUARE_KEY = '';
+const JOBURG_LL = '-26.15,28.05';
+
+async function searchFoursquare(text) {
+    if (!FOURSQUARE_KEY) return [];
+    const url = `https://places-api.foursquare.com/places/search?query=${encodeURIComponent(text)}&ll=${JOBURG_LL}&radius=60000&limit=6`;
+    const res = await fetch(url, {
+        headers: {
+            Authorization: `Bearer ${FOURSQUARE_KEY}`,
+            'X-Places-Api-Version': '2025-06-17',
+            Accept: 'application/json'
+        }
+    });
+    if (!res.ok) throw new Error(`Foursquare ${res.status}`);
+    return ((await res.json()).results || []).map(place => {
+        const lat = place.latitude ?? place.geocodes?.main?.latitude;
+        const lng = place.longitude ?? place.geocodes?.main?.longitude;
+        const loc = place.location || {};
+        return {
+            name: place.name,
+            lat: Number(lat),
+            lng: Number(lng),
+            area: loc.locality || loc.neighborhood?.[0] || loc.region || '',
+            address: loc.address || loc.formatted_address || '',
+            fsqId: place.fsq_place_id || place.fsq_id || ''
+        };
+    }).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+}
+
 async function geocodePlace(text) {
     try {
         const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(text)}&limit=1&lat=-26.15&lon=28.05&bbox=27.3,-26.9,28.9,-25.3`);
@@ -1137,6 +1168,69 @@ function coordsFromMapLink(link) {
     return m ? { lat: Number(m[1]), lng: Number(m[2]) } : null;
 }
 
+// Show Foursquare matches so a wrong guess is one tap to fix
+const pinFoodResults = document.getElementById('pin-food-results');
+
+let autoFilledPlace = '';
+
+function choosePlace(place, note) {
+    currentFoodLocation = { lat: place.lat, lng: place.lng };
+    const typed = pinFoodPlace.value.trim();
+    // Replace the Place field only if it's empty, just the title, or something we filled in ourselves
+    if (!typed || typed === pinTitleInput.value.trim() || typed === autoFilledPlace) {
+        pinFoodPlace.value = autoFilledPlace = place.area ? `${place.name}, ${place.area}` : place.name;
+    }
+    closeFoodPicker();
+    renderLocateStatus(note || `Pinned: ${place.name}${place.area ? `, ${place.area}` : ''}. Tap Save Changes`);
+}
+
+function renderPlaceChoices(places, chosenIndex) {
+    if (!places.length) {
+        pinFoodResults.classList.add('hidden');
+        pinFoodResults.innerHTML = '';
+        return;
+    }
+    pinFoodResults.innerHTML = `<span class="place-results-label">Not the right one? Tap the correct place:</span>` +
+        places.map((place, i) => `
+            <button type="button" class="place-choice ${i === chosenIndex ? 'chosen' : ''}" data-index="${i}">
+                <strong>${escapeHtml(place.name)}</strong>
+                <span>${escapeHtml([place.address, place.area].filter(Boolean).join(', '))}</span>
+            </button>
+        `).join('');
+    pinFoodResults.classList.remove('hidden');
+    pinFoodResults.querySelectorAll('.place-choice').forEach(btn => {
+        btn.addEventListener('click', () => {
+            choosePlace(places[Number(btn.dataset.index)]);
+            renderPlaceChoices(places, Number(btn.dataset.index));
+        });
+    });
+}
+
+// Returns the place it pinned (or null), trying Foursquare first
+async function findFoodOnMap(place) {
+    renderPlaceChoices([]);
+    if (FOURSQUARE_KEY) {
+        try {
+            const places = await searchFoursquare(place);
+            if (places.length) {
+                choosePlace(places[0]);
+                renderPlaceChoices(places, 0);
+                return places[0];
+            }
+        } catch (err) {
+            console.warn('Foursquare search failed, falling back to OpenStreetMap:', err);
+        }
+    }
+    const hit = await geocodePlace(place);
+    if (hit) {
+        currentFoodLocation = { lat: hit.lat, lng: hit.lng };
+        openFoodPicker(`Found: ${hit.name}. Drag the pin if it's not quite right.`);
+        return hit;
+    }
+    openFoodPicker('Couldn\'t find it automatically. Jump to the suburb below, then tap where it is.');
+    return null;
+}
+
 pinFoodLocateBtn.addEventListener('click', async () => {
     const fromLink = coordsFromMapLink(pinFoodMap.value);
     if (fromLink) {
@@ -1151,13 +1245,7 @@ pinFoodLocateBtn.addEventListener('click', async () => {
     }
     renderLocateStatus('Searching…');
     try {
-        const hit = await geocodePlace(place);
-        if (!hit) {
-            openFoodPicker('Not in the map\'s directory. Jump to the suburb below, then tap where it is.');
-            return;
-        }
-        currentFoodLocation = { lat: hit.lat, lng: hit.lng };
-        openFoodPicker(`Found: ${hit.name}. Drag the pin if it's not quite right.`);
+        await findFoodOnMap(place);
     } catch (err) {
         renderLocateStatus('Map search failed. Check your connection and try again.');
     }
@@ -1321,6 +1409,7 @@ function openPinModal(pinId) {
     pinFilmPosterStatus.textContent = '';
     currentFoodLocation = pin.lat !== null && pin.lng !== null ? { lat: pin.lat, lng: pin.lng } : null;
     closeFoodPicker();
+    renderPlaceChoices([]);
     renderLocateStatus();
     toggleCategoryFields();
     pinAlbumUrlInput.value = pin.albumUrl || DEFAULT_ALBUM_URL;
@@ -1520,21 +1609,21 @@ addPinForm.addEventListener('submit', (e) => {
     } else if (category === 'food') {
         const pin = pinBoardEntries.find(p => p.id === newId);
         pin.foodPlace = pin.foodPlace || title;
-        geocodePlace(pin.foodPlace).catch(() => null).then(hit => {
-            if (hit) {
-                pin.lat = hit.lat;
-                pin.lng = hit.lng;
-            }
+        savePins();
+        renderPins();
+        renderReviews();
+        openPinModal(newId);
+        renderLocateStatus('Finding it on the map…');
+        // Pin it straight away; picking a different match or saving updates it
+        findFoodOnMap(pin.foodPlace).then(found => {
+            if (!found || !currentFoodLocation) return;
+            pin.lat = currentFoodLocation.lat;
+            pin.lng = currentFoodLocation.lng;
+            if (pinFoodPlace.value.trim()) pin.foodPlace = pinFoodPlace.value.trim();
             savePins();
             renderPins();
             renderReviews();
-            openPinModal(newId);
-            if (hit) {
-                openFoodPicker(`Pinned: ${hit.name}. Drag the pin if it's not quite right.`);
-            } else {
-                openFoodPicker('Couldn\'t find it in the map\'s directory. Jump to the suburb below, then tap where it is.');
-            }
-        });
+        }).catch(() => openFoodPicker('Couldn\'t search right now. Jump to the suburb below, then tap where it is.'));
     }
 });
 
