@@ -1287,3 +1287,132 @@ body.theme-night .suggested-row {
 .food-map.night .leaflet-tile-pane {
     filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
 }
+
+/* --- Movie day --- */
+.movie-day {
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+    margin: 0 auto 24px;
+    max-width: 760px;
+    padding: 18px;
+    border-radius: 20px;
+    background: #fffdf7;
+    border: 2px dashed #d8a657;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.movie-day-poster {
+    width: 130px;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+    border-radius: 10px;
+    flex-shrink: 0;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+}
+
+.movie-day-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+.movie-day-body h2 {
+    font-family: "Caveat", cursive;
+    font-size: 38px;
+    line-height: 1;
+    margin: 0;
+}
+
+.movie-day-body p {
+    color: #555555;
+    font-size: 14px;
+}
+
+.movie-day-ticket {
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    max-width: 320px;
+}
+
+.movie-day-note {
+    font-style: italic;
+}
+
+.movie-day-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.movie-day-actions .ghost-btn {
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.showtime-badge {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #9a6b1f;
+}
+
+.ticket-stub[data-ticket-pin] {
+    cursor: zoom-in;
+}
+
+.poster-preview {
+    height: 48px;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+.ticket-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px;
+}
+
+.ticket-viewer img {
+    max-width: 100%;
+    max-height: 85vh;
+    object-fit: contain;
+}
+
+.ticket-viewer p {
+    color: #666666;
+    font-size: 13px;
+}
+
+body.theme-night .movie-day {
+    background: #28354c;
+    border-color: #8a6d3b;
+    color: #f4efe6;
+}
+
+body.theme-night .movie-day-body p {
+    color: #d6cfc2;
+}
+
+@media (max-width: 560px) {
+    .movie-day {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    .movie-day-body {
+        align-items: center;
+    }
+    .movie-day-poster {
+        width: 150px;
+    }
+}

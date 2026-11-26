@@ -120,6 +120,8 @@ function normalizePin(pin) {
         mapUrl: pin.mapUrl || '',
         letterboxdKey: pin.letterboxdKey || '',
         ticketImage: pin.ticketImage || '',
+        showDate: /^\d{4}-\d{2}-\d{2}$/.test(pin.showDate || '') ? pin.showDate : '',
+        showTime: /^\d{2}:\d{2}/.test(pin.showTime || '') ? pin.showTime.slice(0, 5) : '',
         lat: Number.isFinite(Number(pin.lat)) && pin.lat !== null && pin.lat !== '' ? Number(pin.lat) : null,
         lng: Number.isFinite(Number(pin.lng)) && pin.lng !== null && pin.lng !== '' ? Number(pin.lng) : null
     };
@@ -228,6 +230,89 @@ function buildPinCardHtml(pin) {
     `;
 }
 
+// --- Movie day: on the day (and the day before) the film's ticket is front and centre ---
+function localDateKey(date) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function formatShowtime(pin) {
+    const date = new Date(`${pin.showDate}T12:00:00`);
+    const day = date.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+    return pin.showTime ? `${day} · ${pin.showTime}` : day;
+}
+
+function renderMovieDay() {
+    const banner = document.getElementById('movie-day');
+    if (!banner) return;
+    const today = new Date();
+    const tomorrow = new Date(today.getTime() + 86400000);
+    const todayKey = localDateKey(today);
+    const tomorrowKey = localDateKey(tomorrow);
+
+    const pin = pinBoardEntries
+        .filter(p => p.category === 'film' && (p.showDate === todayKey || p.showDate === tomorrowKey))
+        .sort((a, b) => `${a.showDate} ${a.showTime}`.localeCompare(`${b.showDate} ${b.showTime}`))[0];
+
+    if (!pin || document.body.dataset.view !== 'home') {
+        banner.classList.add('hidden');
+        banner.innerHTML = '';
+        return;
+    }
+
+    const when = pin.showDate === todayKey ? 'Movie day!' : 'Movie date tomorrow';
+    const poster = safeUrl(pin.posterUrl);
+    const ticket = safeUrl(pin.ticketImage);
+    const letterboxd = safeUrl(pin.letterboxdUrl);
+    banner.innerHTML = `
+        ${poster ? `<img class="movie-day-poster" src="${poster}" alt="${escapeHtml(pin.title)} poster">` : ''}
+        <div class="movie-day-body">
+            <span class="bubble-tag">${when}</span>
+            <h2>${escapeHtml(pin.title)}</h2>
+            <p>${escapeHtml(formatShowtime(pin))}${pin.details ? ` · ${escapeHtml(pin.details)}` : ''}</p>
+            ${ticket
+                ? `<button type="button" class="ticket-stub movie-day-ticket" data-ticket-pin="${escapeHtml(pin.id)}" aria-label="Show ticket full screen">
+                       <span class="ticket-label">ADMIT TWO · tap to show</span>
+                       <img src="${ticket}" alt="Ticket">
+                   </button>`
+                : `<p class="movie-day-note">No ticket saved yet. Open the film and add a photo of it.</p>`}
+            <div class="movie-day-actions">
+                ${letterboxd ? `<a class="ghost-btn" href="${letterboxd}" target="_blank" rel="noopener noreferrer">Letterboxd</a>` : ''}
+                <button type="button" class="ghost-btn" data-open-pin="${escapeHtml(pin.id)}">Open</button>
+            </div>
+        </div>
+    `;
+    banner.classList.remove('hidden');
+}
+
+const ticketViewer = document.getElementById('ticket-viewer');
+const ticketViewerImg = document.getElementById('ticket-viewer-img');
+
+function showTicketFullScreen(pinId) {
+    const pin = pinBoardEntries.find(p => p.id === pinId);
+    if (!pin || !safeUrl(pin.ticketImage) || !ticketViewer) return;
+    ticketViewerImg.src = pin.ticketImage;
+    ticketViewer.classList.remove('hidden');
+}
+
+if (ticketViewer) {
+    ticketViewer.addEventListener('click', () => ticketViewer.classList.add('hidden'));
+}
+
+document.addEventListener('click', (e) => {
+    const ticketBtn = e.target.closest('[data-ticket-pin]');
+    if (ticketBtn) {
+        e.stopPropagation();
+        showTicketFullScreen(ticketBtn.dataset.ticketPin);
+        return;
+    }
+    const openBtn = e.target.closest('[data-open-pin]');
+    if (openBtn) openPinModal(openBtn.dataset.openPin);
+});
+
+// Check again at midnight-ish if the page is left open
+setInterval(renderMovieDay, 15 * 60 * 1000);
+
 function renderPins() {
     if (!pinBoard) return;
 
@@ -291,6 +376,8 @@ function renderPins() {
             </div>
         `;
     }
+
+    renderMovieDay();
 
     // Re-attach click listeners to open the Edit Modal
     pinBoard.querySelectorAll('.pin-card').forEach(card => {
@@ -453,10 +540,11 @@ function buildFilmCardHtml(pin) {
             <div class="category-card-body">
                 <h4>${escapeHtml(pin.title)}${pin.filmYear ? ` <span class="film-year">(${escapeHtml(pin.filmYear)})</span>` : ''}</h4>
                 <p class="category-sub">${escapeHtml(pin.details)}</p>
+                ${pin.showDate ? `<p class="showtime-badge">🎟️ ${escapeHtml(formatShowtime(pin))}</p>` : ''}
                 ${scoreLine(pin)}
                 ${pin.review ? `<p class="category-review">${escapeHtml(pin.review)}</p>` : ''}
                 ${safeUrl(pin.ticketImage) ? `
-                    <div class="ticket-stub" aria-label="Ticket stub">
+                    <div class="ticket-stub" data-ticket-pin="${escapeHtml(pin.id)}" aria-label="Ticket stub, tap to show full screen">
                         <span class="ticket-label">ADMIT TWO</span>
                         <img src="${safeUrl(pin.ticketImage)}" alt="Our ticket for ${escapeHtml(pin.title)}">
                     </div>` : ''}
@@ -624,7 +712,7 @@ document.querySelectorAll('.map-filter').forEach(btn => {
 [filmList, foodList].forEach(list => {
     if (!list) return;
     list.addEventListener('click', (e) => {
-        if (e.target.closest('a')) return;
+        if (e.target.closest('a') || e.target.closest('[data-ticket-pin]')) return;
         const card = e.target.closest('.category-card');
         if (card) openPinModal(card.dataset.id);
     });
@@ -717,6 +805,52 @@ const pinFoodLocateBtn = document.getElementById('pin-food-locate-btn');
 const pinFoodUnlocateBtn = document.getElementById('pin-food-unlocate-btn');
 const pinFoodLocateStatus = document.getElementById('pin-food-locate-status');
 let currentTicketImage = '';
+const pinFilmShowDate = document.getElementById('pin-film-show-date');
+const pinFilmShowTime = document.getElementById('pin-film-show-time');
+const pinFilmFindPoster = document.getElementById('pin-film-find-poster');
+const pinFilmPosterStatus = document.getElementById('pin-film-poster-status');
+
+// Wikipedia's free API has film posters and allows browser requests (no key)
+async function findFilmOnWikipedia(title, year) {
+    const candidates = [
+        year ? `${title} (${year} film)` : '',
+        `${title} (film)`,
+        title
+    ].filter(Boolean);
+    for (const candidate of candidates) {
+        try {
+            const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(candidate.replace(/ /g, '_'))}`);
+            if (!res.ok) continue;
+            const page = await res.json();
+            const image = (page.originalimage || page.thumbnail || {}).source;
+            if (page.type === 'standard' && /film|movie/i.test(page.description || '') && image) {
+                return {
+                    poster: image.split('?')[0],
+                    year: ((page.description || '').match(/\b(19|20)\d{2}\b/) || [''])[0],
+                    pageUrl: page.content_urls?.desktop?.page || ''
+                };
+            }
+        } catch (err) { /* try the next name */ }
+    }
+    return null;
+}
+
+pinFilmFindPoster.addEventListener('click', async () => {
+    const title = pinTitleInput.value.trim();
+    if (!title) {
+        pinFilmPosterStatus.textContent = 'Add the film title first';
+        return;
+    }
+    pinFilmPosterStatus.textContent = 'Looking…';
+    const found = await findFilmOnWikipedia(title, pinFilmYear.value.trim());
+    if (!found) {
+        pinFilmPosterStatus.textContent = 'No poster found. Try the exact film title, or paste a poster link.';
+        return;
+    }
+    pinFilmPoster.value = found.poster;
+    if (!pinFilmYear.value && found.year) pinFilmYear.value = found.year;
+    pinFilmPosterStatus.innerHTML = `<img class="poster-preview" src="${safeUrl(found.poster)}" alt="Poster"> Found it. Tap Save Changes`;
+});
 let currentFoodLocation = null;
 
 function renderTicketPreview() {
@@ -728,18 +862,18 @@ function renderTicketPreview() {
 }
 
 pinTicketTrigger.addEventListener('click', () => pinTicketInput.click());
-// Keeps the ticket's proportions (the thumbnail helper squashes tall photos)
+// Keeps the ticket's proportions and enough detail for the QR code to scan at the cinema
 function loadTicketImage(file, onDone, onError) {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-        const scale = Math.min(1, 900 / Math.max(img.width, img.height));
+        const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(url);
-        onDone(canvas.toDataURL('image/jpeg', 0.72));
+        onDone(canvas.toDataURL('image/jpeg', 0.85));
     };
     img.onerror = () => {
         URL.revokeObjectURL(url);
@@ -883,6 +1017,9 @@ function openPinModal(pinId) {
     pinFoodMap.value = pin.mapUrl || '';
     currentTicketImage = pin.ticketImage || '';
     renderTicketPreview();
+    pinFilmShowDate.value = pin.showDate || '';
+    pinFilmShowTime.value = pin.showTime || '';
+    pinFilmPosterStatus.textContent = '';
     currentFoodLocation = pin.lat !== null && pin.lng !== null ? { lat: pin.lat, lng: pin.lng } : null;
     renderLocateStatus();
     toggleCategoryFields();
@@ -945,6 +1082,8 @@ pinForm.addEventListener('submit', (e) => {
     pin.foodPrice = pinFoodPrice.value;
     pin.mapUrl = pinFoodMap.value.trim();
     pin.ticketImage = currentTicketImage;
+    pin.showDate = pinFilmShowDate.value;
+    pin.showTime = pinFilmShowTime.value;
     pin.lat = currentFoodLocation ? currentFoodLocation.lat : null;
     pin.lng = currentFoodLocation ? currentFoodLocation.lng : null;
 
@@ -1358,6 +1497,22 @@ async function importLetterboxd() {
         if (!watch.nik || !watch.lei || dismissed[watch.key]) return;
 
         let pin = pinBoardEntries.find(p => p.letterboxdKey === watch.key);
+        if (!pin) {
+            // A film we already added by hand: link it rather than making a duplicate
+            const sameTitle = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            pin = pinBoardEntries.find(p => !p.letterboxdKey
+                && (p.category === 'film' || p.type === 'memory')
+                && sameTitle(p.title) === sameTitle(watch.nik.filmTitle));
+            if (pin) {
+                const film = watch.nik.poster ? watch.nik : watch.lei;
+                pin.letterboxdKey = watch.key;
+                pin.category = 'film';
+                if (!pin.posterUrl) pin.posterUrl = film.poster;
+                if (!pin.letterboxdUrl) pin.letterboxdUrl = film.filmUrl;
+                if (!pin.filmYear) pin.filmYear = film.filmYear;
+                changed = true;
+            }
+        }
         if (!pin) {
             const film = watch.nik.poster ? watch.nik : watch.lei;
             const watched = new Date(`${watch.date}T12:00:00`).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });

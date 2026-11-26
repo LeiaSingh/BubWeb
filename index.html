@@ -33,6 +33,8 @@
             <button id="add-pin-btn" class="add-pin-btn" type="button">+1 BubAdventure</button>
         </div>
 
+        <section id="movie-day" class="movie-day hidden" aria-live="polite"></section>
+
         <section id="pin-board" class="pin-board" aria-live="polite"></section>
 
         <nav class="page-nav">
@@ -188,6 +190,20 @@
                             <span>Poster image link</span>
                             <input type="url" id="pin-film-poster" placeholder="https://...">
                         </label>
+                        <div class="photo-upload-container">
+                            <button type="button" id="pin-film-find-poster" class="ghost-btn">Find poster</button>
+                            <span id="pin-film-poster-status" class="photo-status"></span>
+                        </div>
+                        <div class="row-2col">
+                            <label class="field">
+                                <span>Movie date</span>
+                                <input type="date" id="pin-film-show-date">
+                            </label>
+                            <label class="field">
+                                <span>Showtime</span>
+                                <input type="time" id="pin-film-show-time">
+                            </label>
+                        </div>
                         <div class="field">
                             <span>Ticket stub</span>
                             <div class="photo-upload-container">
@@ -364,6 +380,11 @@
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+        <div id="ticket-viewer" class="ticket-viewer hidden" role="dialog" aria-modal="true" aria-label="Ticket">
+            <img id="ticket-viewer-img" alt="Ticket">
+            <p>Tap anywhere to close</p>
+        </div>
+
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
         <script src="script.js"></script>
     </div>
