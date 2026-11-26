@@ -838,7 +838,7 @@ async function filmDetailsFromWikidata(qid) {
 // Fill only what's empty, so anything typed by hand always wins
 async function autoFillFilm(pin) {
     if (pin.category !== 'film' || (pin.posterUrl && pin.letterboxdUrl && pin.filmYear)) return false;
-    const found = await findFilmOnWikipedia(pin.title, pin.filmYear);
+    const found = await findFilmOnWikipedia(pin.title, pin.filmYear, pin.letterboxdUrl);
     pin.filmLookupDone = true;
     if (!found) return true;
     if (found.title && found.title !== pin.title) pin.title = found.title;
@@ -867,50 +867,114 @@ async function autoFillMissingFilms() {
     }
 }
 
-async function findFilmOnWikipedia(title, year) {
-    // No year given: try this year's and next year's releases first (watchlists are mostly new films)
-    const thisYear = new Date().getFullYear();
-    const candidates = (year
-        ? [`${title} (${year} film)`, `${title} (film)`, title]
-        : [`${title} (${thisYear} film)`, `${title} (${thisYear + 1} film)`, `${title} (film)`, title]);
-    for (const candidate of candidates) {
-        try {
-            const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(candidate.replace(/ /g, '_'))}`);
-            if (!res.ok) continue;
-            const page = await res.json();
-            const image = (page.originalimage || page.thumbnail || {}).source;
-            if (page.type === 'standard' && /film|movie/i.test(page.description || '') && image) {
-                const extra = await filmDetailsFromWikidata(page.wikibase_item);
-                return {
-                    title: page.title.replace(/\s*\((?:\d{4} )?(?:[\w-]+ )?film\)$/i, ''),
-                    poster: image.split('?')[0],
-                    year: ((page.description || '').match(/\b(19|20)\d{2}\b/) || [''])[0] || extra.year,
-                    letterboxdUrl: extra.letterboxdSlug ? `https://letterboxd.com/film/${extra.letterboxdSlug}/` : '',
-                    pageUrl: page.content_urls?.desktop?.page || ''
-                };
-            }
-        } catch (err) { /* try the next name */ }
+const WIKI_API = 'https://en.wikipedia.org/w/api.php';
+const WIKIDATA_API = 'https://www.wikidata.org/w/api.php';
+
+function letterboxdSlug(url) {
+    return (String(url || '').match(/letterboxd\.com\/(?:[^/]+\/)?film\/([^/?#]+)/i) || [])[1] || '';
+}
+
+const normaliseTitle = t => String(t || '').toLowerCase()
+    .replace(/\s*\((?:\d{4} )?(?:[\w-]+ )?film\)$/i, '')
+    .replace(/[^a-z0-9]/g, '');
+
+// The poster comes from the page summary (search results leave film posters out)
+async function filmFromWikipediaPage(pageTitle) {
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle.replace(/ /g, '_'))}`);
+    if (!res.ok) return null;
+    const page = await res.json();
+    const image = (page.originalimage || page.thumbnail || {}).source;
+    if (page.type !== 'standard' || !/film|movie/i.test(page.description || '') || !image) return null;
+    const extra = await filmDetailsFromWikidata(page.wikibase_item);
+    return {
+        title: page.title.replace(/\s*\((?:\d{4} )?(?:[\w-]+ )?film\)$/i, ''),
+        poster: image.split('?')[0],
+        year: ((page.description || '').match(/\b(19|20)\d{2}\b/) || [''])[0] || extra.year,
+        letterboxdUrl: extra.letterboxdSlug ? `https://letterboxd.com/film/${extra.letterboxdSlug}/` : '',
+        pageUrl: page.content_urls?.desktop?.page || ''
+    };
+}
+
+// A Letterboxd link points at one exact film: Wikidata maps it to its Wikipedia page
+async function wikipediaTitleForLetterboxd(slug) {
+    try {
+        const search = await (await fetch(`${WIKIDATA_API}?action=query&list=search&srsearch=${encodeURIComponent(`haswbstatement:P6127=${slug}`)}&format=json&origin=*`)).json();
+        const qid = search.query?.search?.[0]?.title;
+        if (!qid) return '';
+        const entity = await (await fetch(`${WIKIDATA_API}?action=wbgetentities&ids=${qid}&props=sitelinks&sitefilter=enwiki&format=json&origin=*`)).json();
+        return entity.entities?.[qid]?.sitelinks?.enwiki?.title || '';
+    } catch (err) {
+        return '';
     }
+}
+
+// Real Wikipedia search, so typos and vague titles still find the film
+async function searchWikipediaFilms(title, year) {
+    const query = `${title} ${year || ''} film`.replace(/\s+/g, ' ').trim();
+    const url = `${WIKI_API}?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=8&prop=description&format=json&origin=*`;
+    const pages = Object.values((await (await fetch(url)).json()).query?.pages || {}).sort((a, b) => a.index - b.index);
+    const thisYear = new Date().getFullYear();
+    const recent = new RegExp(`upcoming|${thisYear}|${thisYear + 1}`, 'i');
+    return pages
+        .filter(p => /film|movie/i.test(p.description || '') && !/^list of/i.test(p.title))
+        .map(p => {
+            let score = -p.index * 0.1;
+            if (normaliseTitle(p.title) === normaliseTitle(title)) score += 3;
+            const text = `${p.title} ${p.description}`;
+            if (year && text.includes(String(year))) score += 2;
+            if (!year && recent.test(text)) score += 1; // watchlists are mostly new films
+            return { title: p.title, score };
+        })
+        .sort((a, b) => b.score - a.score)
+        .map(p => p.title);
+}
+
+async function findFilmOnWikipedia(title, year, letterboxdUrl) {
+    try {
+        const slug = letterboxdSlug(letterboxdUrl);
+        if (slug) {
+            const exact = await wikipediaTitleForLetterboxd(slug);
+            const found = exact && await filmFromWikipediaPage(exact);
+            if (found) return { ...found, letterboxdUrl: found.letterboxdUrl || `https://letterboxd.com/film/${slug}/` };
+            // Not linked on Wikidata yet: search using the words in the link
+            if (!title) title = slug.replace(/-\d{4}$/, '').replace(/-/g, ' ');
+        }
+        if (!title) return null;
+        for (const pageTitle of (await searchWikipediaFilms(title, year)).slice(0, 3)) {
+            const found = await filmFromWikipediaPage(pageTitle);
+            if (found) return found;
+        }
+    } catch (err) { /* offline or blocked: caller shows a message */ }
     return null;
 }
 
-pinFilmFindPoster.addEventListener('click', async () => {
+async function runFindPoster() {
     const title = pinTitleInput.value.trim();
-    if (!title) {
-        pinFilmPosterStatus.textContent = 'Add the film title first';
+    const link = pinFilmLetterboxd.value.trim();
+    if (!title && !link) {
+        pinFilmPosterStatus.textContent = 'Add the film title or its Letterboxd link first';
         return;
     }
     pinFilmPosterStatus.textContent = 'Looking…';
-    const found = await findFilmOnWikipedia(title, pinFilmYear.value.trim());
+    const found = await findFilmOnWikipedia(title, pinFilmYear.value.trim(), link);
     if (!found) {
-        pinFilmPosterStatus.textContent = 'No poster found. Try the exact film title, or paste a poster link.';
+        pinFilmPosterStatus.textContent = /boxd\.it/i.test(link)
+            ? 'Short boxd.it links can\'t be read. Open it and paste the full letterboxd.com/film/… link, or check the title.'
+            : 'No poster found. Check the title (or add the year), or paste a poster link.';
         return;
     }
     pinFilmPoster.value = found.poster;
     if (found.title) pinTitleInput.value = found.title;
-    if (!pinFilmYear.value && found.year) pinFilmYear.value = found.year;
-    if (!pinFilmLetterboxd.value && found.letterboxdUrl) pinFilmLetterboxd.value = found.letterboxdUrl;
+    if (found.year && (!pinFilmYear.value || letterboxdSlug(link))) pinFilmYear.value = found.year;
+    if (found.letterboxdUrl && (!link || /boxd\.it/i.test(link))) pinFilmLetterboxd.value = found.letterboxdUrl;
     pinFilmPosterStatus.innerHTML = `<img class="poster-preview" src="${safeUrl(found.poster)}" alt="Poster"> Found ${escapeHtml(found.title)}${found.year ? ` (${escapeHtml(found.year)})` : ''}. Tap Save Changes`;
+}
+
+pinFilmFindPoster.addEventListener('click', runFindPoster);
+
+// Pasting a Letterboxd link fills in the poster straight away
+pinFilmLetterboxd.addEventListener('change', () => {
+    if (letterboxdSlug(pinFilmLetterboxd.value) && !pinFilmPoster.value.trim()) runFindPoster();
 });
 let currentFoodLocation = null;
 
