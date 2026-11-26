@@ -120,6 +120,7 @@ function normalizePin(pin) {
         mapUrl: pin.mapUrl || '',
         letterboxdKey: pin.letterboxdKey || '',
         ticketImage: pin.ticketImage || '',
+        customTitle: pin.customTitle || '',
         showDate: /^\d{4}-\d{2}-\d{2}$/.test(pin.showDate || '') ? pin.showDate : '',
         showTime: /^\d{2}:\d{2}/.test(pin.showTime || '') ? pin.showTime.slice(0, 5) : '',
         lat: Number.isFinite(Number(pin.lat)) && pin.lat !== null && pin.lat !== '' ? Number(pin.lat) : null,
@@ -179,6 +180,11 @@ function safeUrl(value) {
     return '';
 }
 
+// Films show our own name if we gave one, otherwise the official title
+function displayTitle(pin) {
+    return (pin.category === 'film' && pin.customTitle) ? pin.customTitle : pin.title;
+}
+
 const CATEGORY_LABELS = { adventure: 'BubAdventure', film: 'BubFilm', food: 'BubFood' };
 
 // --- Render Pin Board (Landing Overview + Dedicated Category Pages) ---
@@ -219,7 +225,7 @@ function buildPinCardHtml(pin) {
                 ${albumBtn}
             </div>
             ${galleryHtml}
-            <h3>${escapeHtml(pin.title)}</h3>
+            <h3>${escapeHtml(displayTitle(pin))}</h3>
             <p>${escapeHtml(pin.details)}</p>
             <div class="pin-meta">
                 <span>${pin.liked ? 'Favorited' : 'Not favorited'}</span>
@@ -268,7 +274,8 @@ function renderMovieDay() {
         ${poster ? `<img class="movie-day-poster" src="${poster}" alt="${escapeHtml(pin.title)} poster">` : ''}
         <div class="movie-day-body">
             <span class="bubble-tag">${when}</span>
-            <h2>${escapeHtml(pin.title)}</h2>
+            <h2>${escapeHtml(displayTitle(pin))}</h2>
+            ${pin.customTitle ? `<p class="official-title">${escapeHtml(pin.title)}</p>` : ''}
             <p>${escapeHtml(formatShowtime(pin))}${pin.details ? ` · ${escapeHtml(pin.details)}` : ''}</p>
             ${ticket
                 ? `<button type="button" class="ticket-stub movie-day-ticket" data-ticket-pin="${escapeHtml(pin.id)}" aria-label="Show ticket full screen">
@@ -426,7 +433,7 @@ function renderReviews() {
                     <span>BubScore: ${avgDisplay}</span>
                 </div>
                 ${galleryHtml}
-                <h4 style="font-size: 18px; margin: 6px 0;">${escapeHtml(pin.title)}</h4>
+                <h4 style="font-size: 18px; margin: 6px 0;">${escapeHtml(displayTitle(pin))}</h4>
                 <p style="color: #444444;">${escapeHtml(pin.review || pin.details)}</p>
                 <p style="font-size: 12.5px; font-weight: 700; margin-top: 8px; color: #333333;">
                     Nik: ${nikDisplay} | Lei: ${leiDisplay} | ${pin.liked ? 'Favorited' : 'Not favorited'}
@@ -538,7 +545,8 @@ function buildFilmCardHtml(pin) {
         <article class="category-card film-card" data-id="${escapeHtml(pin.id)}" tabindex="0">
             ${poster ? `<img class="film-poster" src="${poster}" alt="${escapeHtml(pin.title)} poster">` : '<div class="film-poster film-poster-empty">🎬</div>'}
             <div class="category-card-body">
-                <h4>${escapeHtml(pin.title)}${pin.filmYear ? ` <span class="film-year">(${escapeHtml(pin.filmYear)})</span>` : ''}</h4>
+                <h4>${escapeHtml(displayTitle(pin))}${pin.filmYear ? ` <span class="film-year">(${escapeHtml(pin.filmYear)})</span>` : ''}</h4>
+                ${pin.customTitle ? `<p class="official-title">${escapeHtml(pin.title)}</p>` : ''}
                 <p class="category-sub">${escapeHtml(pin.details)}</p>
                 ${pin.showDate ? `<p class="showtime-badge">🎟️ ${escapeHtml(formatShowtime(pin))}</p>` : ''}
                 ${scoreLine(pin)}
@@ -806,6 +814,7 @@ const pinFoodUnlocateBtn = document.getElementById('pin-food-unlocate-btn');
 const pinFoodLocateStatus = document.getElementById('pin-food-locate-status');
 let currentTicketImage = '';
 const pinFilmShowDate = document.getElementById('pin-film-show-date');
+const pinFilmCustomTitle = document.getElementById('pin-film-custom-title');
 const pinFilmShowTime = document.getElementById('pin-film-show-time');
 const pinFilmFindPoster = document.getElementById('pin-film-find-poster');
 const pinFilmPosterStatus = document.getElementById('pin-film-poster-status');
@@ -1018,6 +1027,7 @@ function openPinModal(pinId) {
     currentTicketImage = pin.ticketImage || '';
     renderTicketPreview();
     pinFilmShowDate.value = pin.showDate || '';
+    pinFilmCustomTitle.value = pin.customTitle || '';
     pinFilmShowTime.value = pin.showTime || '';
     pinFilmPosterStatus.textContent = '';
     currentFoodLocation = pin.lat !== null && pin.lng !== null ? { lat: pin.lat, lng: pin.lng } : null;
@@ -1083,6 +1093,7 @@ pinForm.addEventListener('submit', (e) => {
     pin.mapUrl = pinFoodMap.value.trim();
     pin.ticketImage = currentTicketImage;
     pin.showDate = pinFilmShowDate.value;
+    pin.customTitle = pinFilmCustomTitle.value.trim();
     pin.showTime = pinFilmShowTime.value;
     pin.lat = currentFoodLocation ? currentFoodLocation.lat : null;
     pin.lng = currentFoodLocation ? currentFoodLocation.lng : null;

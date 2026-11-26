@@ -1416,3 +1416,13 @@ body.theme-night .movie-day-body p {
         width: 150px;
     }
 }
+
+.official-title {
+    font-size: 12px;
+    color: #718096;
+    margin-top: -2px;
+}
+
+body.theme-night .official-title {
+    color: #9fb0c9;
+}
