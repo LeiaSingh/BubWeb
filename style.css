@@ -1426,3 +1426,115 @@ body.theme-night .movie-day-body p {
 body.theme-night .official-title {
     color: #9fb0c9;
 }
+
+/* --- The Full List --- */
+.full-list {
+    display: grid;
+    gap: 8px;
+}
+
+.full-list-count {
+    font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 13px;
+    color: #718096;
+    vertical-align: middle;
+}
+
+.full-list-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    padding: 10px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.full-list-row:hover {
+    border-color: #cbd5e0;
+}
+
+.full-list-icon {
+    font-size: 20px;
+}
+
+.full-list-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.full-list-main strong {
+    font-family: "Caveat", cursive;
+    font-size: 22px;
+    line-height: 1.1;
+}
+
+.full-list-score {
+    font-weight: 800;
+    font-size: 14px;
+    background: #f3f3f3;
+    border-radius: 999px;
+    padding: 4px 10px;
+}
+
+body.theme-night .full-list-row {
+    background: #28354c;
+    border-color: #3a4b68;
+    color: #f4efe6;
+}
+
+body.theme-night .full-list-score {
+    background: #3a4b68;
+}
+
+/* --- Food links & richer map popups --- */
+.food-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.food-popup-photo {
+    width: 100%;
+    max-height: 110px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.food-popup-score {
+    font-weight: 700;
+    font-size: 12px;
+}
+
+.food-popup-review {
+    font-size: 12px;
+    color: #555555;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.food-popup-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.food-popup-actions .save-btn,
+.food-popup-actions .ghost-btn {
+    font-size: 12px;
+    padding: 5px 10px;
+    text-decoration: none;
+}
+
+.food-popup {
+    min-width: 200px;
+}

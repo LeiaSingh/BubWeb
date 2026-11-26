@@ -2,30 +2,9 @@
 const navButtons = document.querySelectorAll('.nav-btn');
 const listPage = document.getElementById('list-page');
 const reviewsPage = document.getElementById('reviews-page');
-const activityForm = document.getElementById('activity-form');
-const activityList = document.getElementById('activity-list');
-const activityNameInput = document.getElementById('activity-name');
-const activityDateInput = document.getElementById('activity-date');
-const activityTimeInput = document.getElementById('activity-time');
-
-const completionForm = document.getElementById('completion-form');
-const completionTitle = document.getElementById('completion-title');
-const nikScoreInput = document.getElementById('nik-score');
-const leiScoreInput = document.getElementById('lei-score');
-const nikScoreValue = document.getElementById('nik-score-value');
-const leiScoreValue = document.getElementById('lei-score-value');
-const saveCompletionButton = document.getElementById('save-completion');
-const cancelCompletionButton = document.getElementById('cancel-completion');
-
-let nikScoreModified = false;
-let leiScoreModified = false;
-
-const STORAGE_KEY = 'bubweb-activities';
 const PIN_STORAGE_KEY = 'bubweb-pin-board';
 const DEFAULT_ALBUM_URL = 'https://photos.app.goo.gl/ZpFHXuDFiwuU2qzXA';
 
-let activities = loadActivities();
-let activeActivityId = null;
 
 // --- Firebase Config & Setup ---
 const firebaseConfig = {
@@ -43,14 +22,11 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 const pinsRef = db.ref('pinBoardEntries');
-const activitiesRef = db.ref('activities');
 const letterboxdDismissedRef = db.ref('letterboxdDismissed');
 
 let isAuthorized = false;
 let isApplyingRemotePins = false;
-let isApplyingRemoteActivities = false;
 let pinsSyncReady = false;
-let activitiesSyncReady = false;
 
 const DEFAULT_PIN_BOARD = [
     {
@@ -129,23 +105,6 @@ function normalizePin(pin) {
     };
 }
 
-function loadActivities() {
-    try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        return saved ? JSON.parse(saved) : [];
-    } catch (e) { return []; }
-}
-
-function saveActivities() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
-    if (isAuthorized && activitiesSyncReady && !isApplyingRemoteActivities) {
-        activitiesRef.set(activities).catch((error) => {
-            console.error('Could not sync activities to Firebase:', error);
-            alert('Your change is saved on this device, but could not sync to Firebase. Check your connection or sign-in.');
-        });
-    }
-}
-
 function loadPins() {
     try {
         const saved = localStorage.getItem(PIN_STORAGE_KEY);
@@ -184,6 +143,26 @@ function safeUrl(value) {
 // Films show our own name if we gave one, otherwise the official title
 function displayTitle(pin) {
     return (pin.category === 'film' && pin.customTitle) ? pin.customTitle : pin.title;
+}
+
+// What each status is called for each kind of pin
+const STATUS_LABELS = {
+    adventure: { 'next-up': 'Wishlist', event: 'Upcoming', memory: 'Done' },
+    film: { 'next-up': 'Watchlist', event: 'Upcoming', memory: 'Watched' },
+    food: { 'next-up': 'Want to try', event: 'Booked', memory: 'Been there' }
+};
+const KIND_ICONS = { adventure: '🌿', film: '🎬', food: '🍜' };
+
+function pinStatus(pin) {
+    return (pin.type === 'memory' || pin.completed) ? 'memory' : (pin.type === 'event' ? 'event' : 'next-up');
+}
+
+// Relabel a status dropdown to match the kind (e.g. food: Want to try / Booked / Been there)
+function relabelStatusSelect(select, kind) {
+    const labels = STATUS_LABELS[kind] || STATUS_LABELS.adventure;
+    [...select.options].forEach(option => {
+        if (labels[option.value]) option.textContent = labels[option.value];
+    });
 }
 
 const CATEGORY_LABELS = { adventure: 'BubAdventure', film: 'BubFilm', food: 'BubFood' };
@@ -448,6 +427,53 @@ function renderReviews() {
     }).join('');
 }
 
+// --- The Full List: everything in one place ---
+const fullList = document.getElementById('full-list');
+let fullListKind = 'all';
+
+function renderFullList() {
+    if (!fullList) return;
+    const pins = pinBoardEntries.filter(p => fullListKind === 'all' || p.category === fullListKind);
+    const groups = [
+        { status: 'event', title: 'Coming up' },
+        { status: 'next-up', title: 'On the list' },
+        { status: 'memory', title: 'Done together' }
+    ];
+    fullList.innerHTML = groups.map(group => {
+        let items = pins.filter(p => pinStatus(p) === group.status);
+        if (group.status === 'event') {
+            items = items.sort((a, b) => (a.showDate || '9999').localeCompare(b.showDate || '9999'));
+        }
+        if (!items.length) return '';
+        return `
+            <h3 class="food-section-title">${group.title} <span class="full-list-count">${items.length}</span></h3>
+            ${items.map(pin => {
+                const label = (STATUS_LABELS[pin.category] || STATUS_LABELS.adventure)[group.status];
+                const score = pin.rating !== null ? `${pin.rating.toFixed(1)}` : '';
+                const when = pin.category === 'film' && pin.showDate ? formatShowtime(pin) : pin.details;
+                return `
+                    <button type="button" class="full-list-row" data-open-pin="${escapeHtml(pin.id)}">
+                        <span class="full-list-icon" aria-hidden="true">${KIND_ICONS[pin.category] || '🌿'}</span>
+                        <span class="full-list-main">
+                            <strong>${escapeHtml(displayTitle(pin))}</strong>
+                            <span class="category-sub">${escapeHtml(label)}${when ? ` · ${escapeHtml(when)}` : ''}</span>
+                        </span>
+                        ${score ? `<span class="full-list-score">${score}</span>` : ''}
+                    </button>
+                `;
+            }).join('')}
+        `;
+    }).join('') || '<p class="empty-state">Nothing here yet. Tap +1 to add something.</p>';
+}
+
+document.querySelectorAll('.full-list-filters .map-filter').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.full-list-filters .map-filter').forEach(b => b.classList.toggle('active', b === btn));
+        fullListKind = btn.dataset.kind;
+        renderFullList();
+    });
+});
+
 // --- BubFilms & BubFood pages ---
 const filmList = document.getElementById('film-list');
 const foodList = document.getElementById('food-list');
@@ -567,10 +593,45 @@ function isFoodVisited(pin) {
     return pin.type === 'memory' || pin.completed;
 }
 
+// --- Food spot helpers ---
+function placeQuery(pin) {
+    const place = pin.foodPlace || pin.title;
+    return /johannesburg|joburg|gauteng|pretoria|durban|cape town|south africa/i.test(place) ? place : `${place}, Johannesburg`;
+}
+
+// Opens the place's live Google reviews (no key needed: it's just a link)
+function googleReviewsUrl(pin) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeQuery(pin))}`;
+}
+
+function directionsUrl(pin) {
+    if (pin.mapUrl) return pin.mapUrl;
+    if (pin.lat !== null && pin.lng !== null) return `https://www.google.com/maps/dir/?api=1&destination=${pin.lat},${pin.lng}`;
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(placeQuery(pin))}`;
+}
+
+// OpenStreetMap search (free, no key) to drop a spot on our map
+async function geocodePlace(text) {
+    const query = /johannesburg|joburg|gauteng|pretoria|durban|cape town|south africa/i.test(text) ? text : `${text}, Gauteng`;
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=za&q=${encodeURIComponent(query)}`, {
+        headers: { 'Accept-Language': 'en' }
+    });
+    const [hit] = await res.json();
+    return hit ? { lat: Number(hit.lat), lng: Number(hit.lon), name: hit.display_name.split(',').slice(0, 3).join(',') } : null;
+}
+
+function foodLinksHtml(pin) {
+    return `
+        <div class="food-links">
+            <a class="ghost-btn category-link" href="${safeUrl(googleReviewsUrl(pin))}" target="_blank" rel="noopener noreferrer">Google reviews</a>
+            <a class="ghost-btn category-link" href="${safeUrl(directionsUrl(pin))}" target="_blank" rel="noopener noreferrer">Directions</a>
+        </div>
+    `;
+}
+
 function buildFoodCardHtml(pin) {
     const photo = pin.images && pin.images[0] ? safeUrl(pin.images[0]) : '';
-    const map = safeUrl(pin.mapUrl);
-    const sub = [pin.foodPlace, pin.foodDish, pin.foodPrice].filter(Boolean).map(escapeHtml).join(' · ');
+    const sub = [pin.foodPlace !== pin.title ? pin.foodPlace : '', pin.foodDish, pin.foodPrice].filter(Boolean).map(escapeHtml).join(' · ');
     return `
         <article class="category-card food-card" data-id="${escapeHtml(pin.id)}" tabindex="0">
             ${photo ? `<img class="food-photo" src="${photo}" alt="${escapeHtml(pin.title)}">` : ''}
@@ -579,14 +640,15 @@ function buildFoodCardHtml(pin) {
                 <p class="category-sub">${sub || escapeHtml(pin.details)}</p>
                 ${scoreLine(pin)}
                 ${pin.review ? `<p class="category-review">${escapeHtml(pin.review)}</p>` : ''}
-                ${pin.lat === null ? '<p class="category-sub">Not on the map yet</p>' : ''}
-                ${map ? `<a class="ghost-btn category-link" href="${map}" target="_blank" rel="noopener noreferrer">Directions</a>` : ''}
+                ${pin.lat === null ? '<p class="category-sub">Not on the map yet. Open it and tap "Find on map"</p>' : ''}
+                ${foodLinksHtml(pin)}
             </div>
         </article>
     `;
 }
 
 function renderCategoryPages() {
+    renderFullList();
     const films = pinBoardEntries.filter(p => p.category === 'film');
     const foods = pinBoardEntries.filter(p => p.category === 'food');
     const been = foods.filter(isFoodVisited);
@@ -598,7 +660,7 @@ function renderCategoryPages() {
         foodList.innerHTML = been.map(buildFoodCardHtml).join('') || '<p class="empty-state">No food dates yet. Add your first one!</p>';
     }
     if (foodWantList) {
-        foodWantList.innerHTML = want.map(buildFoodCardHtml).join('') || '<p class="empty-state">Nothing on the list. Add a spot you want to try (pick "Wishlist Item").</p>';
+        foodWantList.innerHTML = want.map(buildFoodCardHtml).join('') || '<p class="empty-state">Nothing on the list. Tap +1 BubFood and pick "Want to try".</p>';
     }
     renderSuggestedList();
     renderFoodMap();
@@ -684,17 +746,28 @@ function renderFoodMap() {
         });
         const popup = document.createElement('div');
         popup.className = 'food-popup';
-        const title = document.createElement('strong');
-        title.textContent = pin.title;
-        const sub = document.createElement('div');
-        sub.textContent = [pin.foodPlace, visited ? (pin.rating !== null ? `BubScore ${pin.rating.toFixed(1)}/10` : 'Been there') : 'Want to try'].filter(Boolean).join(' · ');
-        const open = document.createElement('button');
-        open.type = 'button';
-        open.className = 'ghost-btn';
-        open.textContent = 'Open';
-        open.addEventListener('click', () => openPinModal(pin.id));
-        popup.append(title, sub, open);
-        marker.bindPopup(popup);
+        const photo = pin.images && pin.images[0] ? safeUrl(pin.images[0]) : '';
+        const scores = visited && pin.rating !== null
+            ? `BubScore ${pin.rating.toFixed(1)}/10 · Nik ${pin.nikScore !== null ? pin.nikScore.toFixed(1) : '—'} · Lei ${pin.leiScore !== null ? pin.leiScore.toFixed(1) : '—'}`
+            : (visited ? 'Been there (not scored yet)' : 'Want to try');
+        popup.innerHTML = `
+            ${photo ? `<img class="food-popup-photo" src="${photo}" alt="">` : ''}
+            <strong>${escapeHtml(pin.title)}</strong>
+            <div>${escapeHtml([pin.foodPlace !== pin.title ? pin.foodPlace : '', pin.foodDish, pin.foodPrice].filter(Boolean).join(' · '))}</div>
+            <div class="food-popup-score">${escapeHtml(scores)}</div>
+            ${pin.review ? `<div class="food-popup-review">${escapeHtml(pin.review)}</div>` : ''}
+            <div class="food-popup-actions">
+                <button type="button" class="save-btn" data-open-pin="${escapeHtml(pin.id)}">${visited ? 'Open & review' : 'Open'}</button>
+                <a class="ghost-btn" href="${safeUrl(googleReviewsUrl(pin))}" target="_blank" rel="noopener noreferrer">Google reviews</a>
+                <a class="ghost-btn" href="${safeUrl(directionsUrl(pin))}" target="_blank" rel="noopener noreferrer">Directions</a>
+            </div>
+        `;
+        // Leaflet stops clicks inside popups from bubbling, so wire the button directly
+        popup.querySelector('[data-open-pin]').addEventListener('click', () => {
+            foodMap.closePopup();
+            openPinModal(pin.id);
+        });
+        marker.bindPopup(popup, { autoPanPaddingTopLeft: L.point(50, 20), maxWidth: 260 });
         marker.addTo(foodMapLayer);
     });
 
@@ -1055,17 +1128,13 @@ pinFoodLocateBtn.addEventListener('click', async () => {
     }
     renderLocateStatus('Searching…');
     try {
-        const query = /johannesburg|joburg|gauteng|pretoria|durban|cape town|south africa/i.test(place) ? place : `${place}, Gauteng`;
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=za&q=${encodeURIComponent(query)}`, {
-            headers: { 'Accept-Language': 'en' }
-        });
-        const [hit] = await res.json();
+        const hit = await geocodePlace(place);
         if (!hit) {
             renderLocateStatus('Couldn\'t find it. Try adding the suburb, e.g. "Miyako Sushi, Rosebank"');
             return;
         }
-        currentFoodLocation = { lat: Number(hit.lat), lng: Number(hit.lon) };
-        renderLocateStatus(`Found: ${hit.display_name.split(',').slice(0, 3).join(',')}`);
+        currentFoodLocation = { lat: hit.lat, lng: hit.lng };
+        renderLocateStatus(`Found: ${hit.name}`);
         pinFoodUnlocateBtn.classList.remove('hidden');
     } catch (err) {
         renderLocateStatus('Map search failed. Check your connection and try again.');
@@ -1077,6 +1146,7 @@ pinFoodUnlocateBtn.addEventListener('click', () => {
 });
 
 function toggleCategoryFields() {
+    relabelStatusSelect(pinTypeInput, pinCategoryInput.value);
     pinFilmFields.classList.toggle('hidden', pinCategoryInput.value !== 'film');
     pinFoodFields.classList.toggle('hidden', pinCategoryInput.value !== 'food');
 }
@@ -1279,10 +1349,13 @@ const addPinModalTitle = document.getElementById('add-pin-modal-title');
 
 function openAddPinModal(category = 'adventure') {
     newPinCategory.value = category;
+    relabelStatusSelect(newPinType, category);
+    if (category === 'food') newPinType.value = 'memory'; // most food pins are places we've been
     addPinModalTitle.textContent = `Create a new ${CATEGORY_LABELS[category]}`;
     addPinModal.classList.remove('hidden');
 }
 newPinCategory.addEventListener('change', () => {
+    relabelStatusSelect(newPinType, newPinCategory.value);
     addPinModalTitle.textContent = `Create a new ${CATEGORY_LABELS[newPinCategory.value]}`;
 });
 
@@ -1340,131 +1413,24 @@ addPinForm.addEventListener('submit', (e) => {
                 ? `Found ${pin.title}${pin.filmYear ? ` (${pin.filmYear})` : ''}. Wrong film? Fix the title or year and tap Find poster.`
                 : 'Couldn\'t find this film automatically. Check the title and tap Find poster.';
         });
-    } else if (category !== 'adventure') {
-        openPinModal(newId);
+    } else if (category === 'food') {
+        const pin = pinBoardEntries.find(p => p.id === newId);
+        pin.foodPlace = pin.foodPlace || title;
+        geocodePlace(pin.foodPlace).catch(() => null).then(hit => {
+            if (hit) {
+                pin.lat = hit.lat;
+                pin.lng = hit.lng;
+            }
+            savePins();
+            renderPins();
+            renderReviews();
+            openPinModal(newId);
+            renderLocateStatus(hit
+                ? `Pinned on the map: ${hit.name}. Wrong spot? Add the suburb to Place and tap Find on map.`
+                : 'Couldn\'t place it on the map. Add the suburb to Place (e.g. "Rosebank") and tap Find on map.');
+        });
     }
 });
-
-// --- Scheduled Activity Scoring Logic ---
-function updateActivitySliderLabels() {
-    nikScoreValue.textContent = nikScoreModified ? Number(nikScoreInput.value).toFixed(1) : (nikScoreValue.dataset.original !== 'null' ? Number(nikScoreValue.dataset.original).toFixed(1) : '—');
-    leiScoreValue.textContent = leiScoreModified ? Number(leiScoreInput.value).toFixed(1) : (leiScoreValue.dataset.original !== 'null' ? Number(leiScoreValue.dataset.original).toFixed(1) : '—');
-}
-
-nikScoreInput.addEventListener('input', () => {
-    nikScoreModified = true;
-    updateActivitySliderLabels();
-});
-
-leiScoreInput.addEventListener('input', () => {
-    leiScoreModified = true;
-    updateActivitySliderLabels();
-});
-
-function renderActivities() {
-    if (!activityList) return;
-    if (!activities.length) {
-        activityList.innerHTML = '<p class="empty-state">No planned activities yet.</p>';
-        return;
-    }
-
-    activityList.innerHTML = activities.map(act => {
-        const nikDisplay = act.nikScore !== null && act.nikScore !== undefined ? `${Number(act.nikScore).toFixed(1)}/10` : '—';
-        const leiDisplay = act.leiScore !== null && act.leiScore !== undefined ? `${Number(act.leiScore).toFixed(1)}/10` : '—';
-        const finalDisplay = act.finalScore !== null && act.finalScore !== undefined ? `BubScore: ${act.finalScore}/10` : 'Not fully scored';
-
-        return `
-            <article class="bubble activity-card">
-                <div>
-                    <h4>${escapeHtml(act.name)}</h4>
-                    <p style="font-size: 13px; color: #666666;">${act.date} at ${act.time}</p>
-                    <div style="font-size: 12px; margin-top: 6px; color: #444444;">
-                        <strong>Nik:</strong> ${nikDisplay} • <strong>Lei:</strong> ${leiDisplay} • <strong>${finalDisplay}</strong>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <button type="button" class="save-btn complete-btn" data-id="${act.id}">${act.completed ? 'Edit Score' : 'Score It'}</button>
-                    <button type="button" class="ghost-btn delete-btn" data-id="${act.id}">×</button>
-                </div>
-            </article>
-        `;
-    }).join('');
-}
-
-activityForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    activities.unshift({
-        id: Date.now(),
-        name: activityNameInput.value.trim(),
-        date: activityDateInput.value,
-        time: activityTimeInput.value,
-        completed: false,
-        nikScore: null,
-        leiScore: null,
-        finalScore: null
-    });
-    saveActivities();
-    renderActivities();
-    activityForm.reset();
-});
-
-activityList.addEventListener('click', (e) => {
-    const completeBtn = e.target.closest('.complete-btn');
-    const delBtn = e.target.closest('.delete-btn');
-
-    if (completeBtn) {
-        const act = activities.find(a => a.id === Number(completeBtn.dataset.id));
-        if (!act) return;
-        activeActivityId = act.id;
-        completionTitle.textContent = `Score: ${act.name}`;
-
-        nikScoreValue.dataset.original = act.nikScore !== null && act.nikScore !== undefined ? String(act.nikScore) : 'null';
-        leiScoreValue.dataset.original = act.leiScore !== null && act.leiScore !== undefined ? String(act.leiScore) : 'null';
-
-        nikScoreInput.value = act.nikScore !== null && act.nikScore !== undefined ? act.nikScore : 5.0;
-        leiScoreInput.value = act.leiScore !== null && act.leiScore !== undefined ? act.leiScore : 5.0;
-
-        nikScoreModified = false;
-        leiScoreModified = false;
-        updateActivitySliderLabels();
-        completionForm.classList.remove('hidden');
-    }
-
-    if (delBtn) {
-        if (confirm('Delete this activity?')) {
-            activities = activities.filter(a => a.id !== Number(delBtn.dataset.id));
-            saveActivities();
-            renderActivities();
-        }
-    }
-});
-
-saveCompletionButton.addEventListener('click', () => {
-    const act = activities.find(a => a.id === activeActivityId);
-    if (!act) return;
-
-    if (nikScoreModified) {
-        act.nikScore = Number(nikScoreInput.value);
-    }
-    if (leiScoreModified) {
-        act.leiScore = Number(leiScoreInput.value);
-    }
-
-    if (act.nikScore !== null && act.leiScore !== null) {
-        act.finalScore = Number(((act.nikScore + act.leiScore) / 2).toFixed(1));
-        act.completed = true;
-    } else if (act.nikScore !== null) {
-        act.finalScore = act.nikScore;
-    } else if (act.leiScore !== null) {
-        act.finalScore = act.leiScore;
-    }
-
-    saveActivities();
-    renderActivities();
-    completionForm.classList.add('hidden');
-});
-
-cancelCompletionButton.addEventListener('click', () => completionForm.classList.add('hidden'));
 
 // --- Navigation Tabs ---
 navButtons.forEach(btn => {
@@ -1563,7 +1529,6 @@ authPersistenceReady.then(() => auth.onAuthStateChanged((user) => {
         if (logoutBtn) logoutBtn.style.display = 'none';
         if (authPrompt) authPrompt.classList.remove('hidden');
         pinsSyncReady = false;
-        activitiesSyncReady = false;
         detachDatabaseListeners();
         console.info('No Firebase Auth user is signed in.');
     }
@@ -1581,15 +1546,11 @@ function attachDatabaseListeners() {
     pinsRef.on('value', handleRemotePins, (error) => {
         console.error('Unable to read pin board data:', error);
     });
-    activitiesRef.on('value', handleRemoteActivities, (error) => {
-        console.error('Unable to read activity data:', error);
-    });
 }
 
 function detachDatabaseListeners() {
     if (!databaseListenersAttached) return;
     pinsRef.off('value', handleRemotePins);
-    activitiesRef.off('value', handleRemoteActivities);
     databaseListenersAttached = false;
 }
 
@@ -1734,32 +1695,6 @@ function handleRemotePins(snap) {
     autoFillMissingFilms();
 }
 
-function handleRemoteActivities(snap) {
-    const data = snap.val();
-    if (!data) {
-        activitiesSyncReady = true;
-        if (isAuthorized) {
-            isApplyingRemoteActivities = true;
-            activitiesRef.set(activities).catch((error) => {
-                console.error('Could not initialize activities in Firebase:', error);
-                alert('Firebase could not initialize the shared activity list. Check the database rules and connection.');
-            }).finally(() => {
-                isApplyingRemoteActivities = false;
-            });
-        }
-        return;
-    }
-    isApplyingRemoteActivities = true;
-    try {
-        activities = Array.isArray(data) ? data : Object.values(data);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
-        activitiesSyncReady = true;
-        renderActivities();
-    } finally {
-        isApplyingRemoteActivities = false;
-    }
-}
-
 function setWeatherTheme(theme) {
     document.body.classList.remove('theme-day', 'theme-rain', 'theme-night', 'theme-afternoon');
     document.body.classList.add(`theme-${theme}`);
@@ -1808,6 +1743,5 @@ applyAutoTheme();
 
 
 renderPins();
-renderActivities();
 renderCategoryPages();
 renderReviews();

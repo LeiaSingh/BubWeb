@@ -46,55 +46,19 @@
 
         <main class="main-content">
             <div id="list-page" class="page-content">
-                <div class="activity-manager">
-                    <form id="activity-form" class="bubble activity-form">
-                        <h3>Add a planned activity</h3>
-                        <label class="field">
-                            <span>Activity name</span>
-                            <input type="text" id="activity-name" placeholder="e.g. Mini golf" required>
-                        </label>
-                        <div class="row-2col">
-                            <label class="field">
-                                <span>Date</span>
-                                <input type="date" id="activity-date" required>
-                            </label>
-                            <label class="field">
-                                <span>Time</span>
-                                <input type="time" id="activity-time" required>
-                            </label>
-                        </div>
-                        <button type="submit" class="save-btn">Save activity</button>
-                    </form>
-
-                    <form id="completion-form" class="bubble completion-form hidden">
-                        <h3 id="completion-title">Mission Complete</h3>
-                        <p class="helper-text">Rate your half of the adventure score independently :)</p>
-                        
-                        <div class="partner-score-block">
-                            <label class="field">
-                                <span>Nik's Score</span>
-                                <div class="slider-row">
-                                    <input type="range" id="nik-score" min="0" max="10" step="0.1" value="5.0">
-                                    <span class="slider-value" id="nik-score-value">—</span>
-                                </div>
-                            </label>
-                            <label class="field">
-                                <span>Lei's Score</span>
-                                <div class="slider-row">
-                                    <input type="range" id="lei-score" min="0" max="10" step="0.1" value="5.0">
-                                    <span class="slider-value" id="lei-score-value">—</span>
-                                </div>
-                            </label>
-                        </div>
-
-                        <div class="form-actions">
-                            <button type="button" id="save-completion" class="save-btn">Save Score</button>
-                            <button type="button" id="cancel-completion" class="ghost-btn">Cancel</button>
-                        </div>
-                    </form>
-
-                    <div id="activity-list" class="activity-list"></div>
+                <div class="category-page-header">
+                    <div>
+                        <h2>The Full List</h2>
+                        <p style="color: #666666;">Every adventure, film and food spot in one place</p>
+                    </div>
                 </div>
+                <div class="food-map-filters full-list-filters" role="group" aria-label="Show">
+                    <button type="button" class="map-filter active" data-kind="all">Everything</button>
+                    <button type="button" class="map-filter" data-kind="adventure">BubAdventures</button>
+                    <button type="button" class="map-filter" data-kind="film">BubFilms</button>
+                    <button type="button" class="map-filter" data-kind="food">BubFood</button>
+                </div>
+                <div id="full-list" class="full-list"></div>
             </div>
 
             <div id="reviews-page" class="page-content hidden">
@@ -241,7 +205,7 @@
                                 </select>
                             </label>
                             <label class="field">
-                                <span>Map link</span>
+                                <span>Google Maps link (optional)</span>
                                 <input type="url" id="pin-food-map" placeholder="https://maps.app.goo.gl/...">
                             </label>
                         </div>
@@ -256,7 +220,7 @@
                     </div>
 
                     <label class="field">
-                        <span>Tag / Category</span>
+                        <span>Status</span>
                         <select id="pin-type-input">
                             <option value="next-up">Wishlist Item</option>
                             <option value="event">Upcoming Event</option>
@@ -341,7 +305,7 @@
                     </label>
 
                     <label class="field">
-                        <span>Category</span>
+                        <span>Status</span>
                         <select id="new-pin-type">
                             <option value="next-up">Wishlist Item</option>
                             <option value="event">Upcoming Event</option>
