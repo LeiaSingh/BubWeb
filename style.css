@@ -1224,3 +1224,61 @@ body.theme-night .food-map {
 body.theme-night .food-section-title {
     color: #f4efe6;
 }
+
+/* --- Suggested spots --- */
+.food-marker.suggested {
+    width: 30px;
+    height: 30px;
+    background: #f6c544;
+    color: #5a3e00;
+    font-size: 14px;
+}
+
+.suggested-list {
+    display: grid;
+    gap: 10px;
+}
+
+.suggested-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px dashed #d8a657;
+    border-radius: 12px;
+    background: #fffbf0;
+}
+
+.suggested-row strong {
+    font-family: "Caveat", cursive;
+    font-size: 22px;
+}
+
+.suggested-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.suggested-actions .category-link {
+    margin-top: 0;
+}
+
+.suggested-add {
+    font-size: 12px;
+    padding: 6px 10px;
+}
+
+body.theme-night .suggested-row {
+    background: #28354c;
+    border-color: #8a6d3b;
+    color: #f4efe6;
+}
+
+@media (max-width: 560px) {
+    .suggested-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

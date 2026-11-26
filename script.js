@@ -364,6 +364,78 @@ let foodMap = null;
 let foodMapLayer = null;
 let foodTileLayer = null;
 let foodMapFilter = 'all';
+const foodSuggestedList = document.getElementById('food-suggested-list');
+
+// Hand-picked, well-reviewed spots to investigate (researched Nov 2026).
+// Ratings change, so we link to the live Google reviews instead of storing them.
+const SUGGESTED_SPOTS = [
+    { name: 'The Station', area: 'Parkhurst', note: 'Relaxed and mid-priced, a strong first pick', lat: -26.1402, lng: 28.0174, placeId: 'ChIJr4p9KtcLlR4RO4m0S-V5G5U' },
+    { name: 'Pera', area: 'Rosebank', note: 'Small and special, save for a celebration', lat: -26.1456, lng: 28.0402, placeId: 'ChIJXUMmKgQNlR4RVQEjjujMI3Y' },
+    { name: 'Marble', area: 'Rosebank', note: 'Fire-grill cooking and rooftop views, book ahead', lat: -26.1436, lng: 28.0362, placeId: 'ChIJLyxCKJIMlR4RzTlmSOyw4h4' },
+    { name: 'Kolonaki Greek Kouzina', area: 'Parkhurst', note: 'Lively Greek, great for sharing plates', lat: -26.1412, lng: 28.0173, placeId: 'ChIJ1UhIIgALlR4RkSBQh_MuaTY' },
+    { name: 'Yamitsuki Sushi', area: 'Bedfordview', note: 'Sushi, teppanyaki and dim sum, worth the drive', lat: -26.1792, lng: 28.1365, placeId: 'ChIJjw3jByASlR4RaPuTDzrJ73w' },
+    { name: 'Artistry JHB', area: 'Sandown', note: 'Restaurant inside an art gallery', lat: -26.1045, lng: 28.0509, placeId: 'ChIJ5ZCGA3BzlR4RhmAZLQmfX1A' },
+    { name: 'SINN', area: 'Sandton', note: 'Stylish spot for a dressier evening', lat: -26.1143, lng: 28.0514, placeId: 'ChIJi8rOHEQNlR4RA0G2AC4WxsU' },
+    { name: 'Salvation Cafe', area: 'Milpark', note: 'Courtyard brunch, minutes from Wits', lat: -26.1855, lng: 28.0190, placeId: 'ChIJOXJYhgoMlR4RIuddWGMlcbM' },
+    { name: 'Breezeblock Cafe', area: 'Brixton', note: 'Cheap and cosy coffee date near campus', lat: -26.1934, lng: 28.0040, placeId: 'ChIJ_QZpVe4LlR4RZ6hBkF0fAfc' },
+    { name: 'La Parada', area: 'Rosebank', note: 'Spanish tapas, fun for a double date', lat: -26.1438, lng: 28.0422, placeId: 'ChIJSzJ4kqENlR4RdTdN2CwQNTw' },
+    { name: 'Dosa Hut', area: 'Fordsburg', note: 'Cheap, proper South Indian dosas', lat: -26.2053, lng: 28.0220, placeId: 'ChIJJcctUaoOlR4R1zV-O4TT1pg' }
+];
+
+function reviewsUrl(spot) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${spot.name}, ${spot.area}`)}&query_place_id=${spot.placeId}`;
+}
+
+// Hide suggestions once they're already one of our food pins
+function openSuggestions() {
+    const ours = pinBoardEntries.filter(p => p.category === 'food')
+        .map(p => `${p.foodPlace} ${p.title}`.toLowerCase());
+    return SUGGESTED_SPOTS.filter(spot => !ours.some(text => text.includes(spot.name.toLowerCase())));
+}
+
+function addSuggestionToWishlist(spot) {
+    const id = `pin-${Date.now()}`;
+    pinBoardEntries.unshift(normalizePin({
+        id,
+        category: 'food',
+        type: 'next-up',
+        title: spot.name,
+        details: `${spot.area} · ${spot.note}`,
+        foodPlace: `${spot.name}, ${spot.area}`,
+        mapUrl: reviewsUrl(spot),
+        lat: spot.lat,
+        lng: spot.lng
+    }));
+    savePins();
+    renderPins();
+    renderReviews();
+}
+
+function renderSuggestedList() {
+    if (!foodSuggestedList) return;
+    const spots = openSuggestions();
+    foodSuggestedList.innerHTML = spots.map(spot => `
+        <div class="suggested-row">
+            <div>
+                <strong>${escapeHtml(spot.name)}</strong> <span class="category-sub">${escapeHtml(spot.area)}</span>
+                <div class="category-sub">${escapeHtml(spot.note)}</div>
+            </div>
+            <div class="suggested-actions">
+                <a class="ghost-btn category-link" href="${safeUrl(reviewsUrl(spot))}" target="_blank" rel="noopener noreferrer">Reviews</a>
+                <button type="button" class="save-btn suggested-add" data-place-id="${escapeHtml(spot.placeId)}">Add to Want to try</button>
+            </div>
+        </div>
+    `).join('') || '<p class="empty-state">You\'ve added every suggestion. Nice!</p>';
+}
+
+if (foodSuggestedList) {
+    foodSuggestedList.addEventListener('click', (e) => {
+        const btn = e.target.closest('.suggested-add');
+        if (!btn) return;
+        const spot = SUGGESTED_SPOTS.find(s => s.placeId === btn.dataset.placeId);
+        if (spot) addSuggestionToWishlist(spot);
+    });
+}
 
 function scoreLine(pin) {
     const nik = pin.nikScore !== null ? `${pin.nikScore.toFixed(1)}` : '—';
@@ -431,6 +503,7 @@ function renderCategoryPages() {
     if (foodWantList) {
         foodWantList.innerHTML = want.map(buildFoodCardHtml).join('') || '<p class="empty-state">Nothing on the list. Add a spot you want to try (pick "Wishlist Item").</p>';
     }
+    renderSuggestedList();
     renderFoodMap();
 }
 
@@ -461,8 +534,46 @@ function renderFoodMap() {
     foodMap.invalidateSize();
     foodMapLayer.clearLayers();
 
-    const spots = pinBoardEntries.filter(p => p.category === 'food' && p.lat !== null && p.lng !== null)
+    const spots = foodMapFilter === 'suggested' ? [] : pinBoardEntries
+        .filter(p => p.category === 'food' && p.lat !== null && p.lng !== null)
         .filter(p => foodMapFilter === 'all' || (foodMapFilter === 'been') === isFoodVisited(p));
+    const suggestions = ['all', 'suggested'].includes(foodMapFilter) ? openSuggestions() : [];
+
+    suggestions.forEach(spot => {
+        const marker = L.marker([spot.lat, spot.lng], {
+            title: spot.name,
+            icon: L.divIcon({
+                className: '',
+                html: '<div class="food-marker suggested"><span>★</span></div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 30],
+                popupAnchor: [0, -28]
+            })
+        });
+        const popup = document.createElement('div');
+        popup.className = 'food-popup';
+        const title = document.createElement('strong');
+        title.textContent = spot.name;
+        const sub = document.createElement('div');
+        sub.textContent = `${spot.area} · ${spot.note}`;
+        const reviews = document.createElement('a');
+        reviews.className = 'ghost-btn';
+        reviews.href = reviewsUrl(spot);
+        reviews.target = '_blank';
+        reviews.rel = 'noopener noreferrer';
+        reviews.textContent = 'Google reviews';
+        const add = document.createElement('button');
+        add.type = 'button';
+        add.className = 'save-btn';
+        add.textContent = 'Add to Want to try';
+        add.addEventListener('click', () => {
+            foodMap.closePopup();
+            addSuggestionToWishlist(spot);
+        });
+        popup.append(title, sub, reviews, add);
+        marker.bindPopup(popup);
+        marker.addTo(foodMapLayer);
+    });
 
     spots.forEach(pin => {
         const visited = isFoodVisited(pin);
@@ -499,8 +610,9 @@ function renderFoodMap() {
             ? `${unplaced} spot${unplaced === 1 ? '' : 's'} not on the map yet. Open one and tap "Find on map".`
             : '';
     }
-    if (spots.length) {
-        foodMap.fitBounds(L.latLngBounds(spots.map(p => [p.lat, p.lng])).pad(0.25), { maxZoom: 15, animate: false });
+    const points = [...spots.map(p => [p.lat, p.lng]), ...suggestions.map(s => [s.lat, s.lng])];
+    if (points.length) {
+        foodMap.fitBounds(L.latLngBounds(points).pad(0.15), { maxZoom: 15, animate: false });
     }
 }
 
