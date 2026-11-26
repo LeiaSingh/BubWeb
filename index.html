@@ -35,8 +35,10 @@
         <section id="pin-board" class="pin-board" aria-live="polite"></section>
 
         <nav class="page-nav">
-            <button class="nav-btn active">The Full List</button>
-            <button class="nav-btn">BubReviews &amp; Gallery</button>
+            <button class="nav-btn active" data-page="list-page">The Full List</button>
+            <button class="nav-btn" data-page="reviews-page">BubReviews &amp; Gallery</button>
+            <button class="nav-btn" data-page="films-page">BubFilms</button>
+            <button class="nav-btn" data-page="food-page">BubFood</button>
         </nav>
 
         <main class="main-content">
@@ -102,6 +104,28 @@
                 </div>
                 <div id="review-list" class="review-list"></div>
             </div>
+
+            <div id="films-page" class="page-content hidden">
+                <div class="category-page-header">
+                    <div>
+                        <h2>BubFilms</h2>
+                        <p style="color: #666666;">Movie dates, posters and our scores</p>
+                    </div>
+                    <button type="button" class="save-btn add-category-btn" data-category="film">+1 BubFilm</button>
+                </div>
+                <div id="film-list" class="category-grid"></div>
+            </div>
+
+            <div id="food-page" class="page-content hidden">
+                <div class="category-page-header">
+                    <div>
+                        <h2>BubFood</h2>
+                        <p style="color: #666666;">Places we ate and what we thought</p>
+                    </div>
+                    <button type="button" class="save-btn add-category-btn" data-category="food">+1 BubFood</button>
+                </div>
+                <div id="food-list" class="category-grid"></div>
+            </div>
         </main>
 
         <!-- Edit Pin / Adventure Modal -->
@@ -122,6 +146,60 @@
                         <span>Details / Notes</span>
                         <input type="text" id="pin-details-input" required>
                     </label>
+
+                    <label class="field">
+                        <span>Kind</span>
+                        <select id="pin-category-input">
+                            <option value="adventure">BubAdventure</option>
+                            <option value="film">BubFilm</option>
+                            <option value="food">BubFood</option>
+                        </select>
+                    </label>
+
+                    <div id="pin-film-fields" class="category-fields hidden">
+                        <div class="row-2col">
+                            <label class="field">
+                                <span>Year</span>
+                                <input type="number" id="pin-film-year" min="1880" max="2100" placeholder="e.g. 2026">
+                            </label>
+                            <label class="field">
+                                <span>Letterboxd link</span>
+                                <input type="url" id="pin-film-letterboxd" placeholder="https://letterboxd.com/film/...">
+                            </label>
+                        </div>
+                        <label class="field">
+                            <span>Poster image link</span>
+                            <input type="url" id="pin-film-poster" placeholder="https://...">
+                        </label>
+                    </div>
+
+                    <div id="pin-food-fields" class="category-fields hidden">
+                        <div class="row-2col">
+                            <label class="field">
+                                <span>Place</span>
+                                <input type="text" id="pin-food-place" placeholder="e.g. Miyako Sushi">
+                            </label>
+                            <label class="field">
+                                <span>What we had</span>
+                                <input type="text" id="pin-food-dish" placeholder="e.g. Salmon roses">
+                            </label>
+                        </div>
+                        <div class="row-2col">
+                            <label class="field">
+                                <span>Price</span>
+                                <select id="pin-food-price">
+                                    <option value="">—</option>
+                                    <option value="$">$</option>
+                                    <option value="$$">$$</option>
+                                    <option value="$$$">$$$</option>
+                                </select>
+                            </label>
+                            <label class="field">
+                                <span>Map link</span>
+                                <input type="url" id="pin-food-map" placeholder="https://maps.app.goo.gl/...">
+                            </label>
+                        </div>
+                    </div>
 
                     <label class="field">
                         <span>Tag / Category</span>
@@ -197,6 +275,15 @@
                     <label class="field">
                         <span>Quick details</span>
                         <input id="new-pin-details" type="text" placeholder="e.g. Next weekend" required>
+                    </label>
+
+                    <label class="field">
+                        <span>Kind</span>
+                        <select id="new-pin-category">
+                            <option value="adventure">BubAdventure</option>
+                            <option value="film">BubFilm</option>
+                            <option value="food">BubFood</option>
+                        </select>
                     </label>
 
                     <label class="field">

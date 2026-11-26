@@ -108,7 +108,15 @@ function normalizePin(pin) {
         nikScore: nik,
         leiScore: lei,
         rating: computedRating,
-        liked: !!pin.liked
+        liked: !!pin.liked,
+        category: ['film', 'food'].includes(pin.category) ? pin.category : 'adventure',
+        filmYear: pin.filmYear || '',
+        posterUrl: pin.posterUrl || '',
+        letterboxdUrl: pin.letterboxdUrl || '',
+        foodPlace: pin.foodPlace || '',
+        foodDish: pin.foodDish || '',
+        foodPrice: pin.foodPrice || '',
+        mapUrl: pin.mapUrl || ''
     };
 }
 
@@ -157,6 +165,15 @@ function escapeHtml(value) {
         .replace(/"/g, '&quot;');
 }
 
+// Only allow http(s) links (and our own compressed photos) into src/href attributes
+function safeUrl(value) {
+    const url = String(value || '').trim();
+    if (/^https?:\/\//i.test(url) || /^data:image\//i.test(url)) return escapeHtml(url);
+    return '';
+}
+
+const CATEGORY_LABELS = { adventure: 'BubAdventure', film: 'BubFilm', food: 'BubFood' };
+
 // --- Render Pin Board (Landing Overview + Dedicated Category Pages) ---
 const pinBoard = document.getElementById('pin-board');
 
@@ -175,6 +192,12 @@ function buildPinCardHtml(pin) {
                 ${photos.slice(0, 3).map(src => `<div class="polaroid-preview-card"><img src="${src}" alt="Memory"></div>`).join('')}
             </div>
         `;
+    } else if (pin.category === 'film' && safeUrl(pin.posterUrl)) {
+        galleryHtml = `
+            <div class="polaroid-gallery">
+                <div class="polaroid-preview-card"><img src="${safeUrl(pin.posterUrl)}" alt="Poster"></div>
+            </div>
+        `;
     }
 
     const scoreText = pin.rating !== null ? `Rating: ${pin.rating.toFixed(1)}/10` : 'Unrated';
@@ -185,7 +208,7 @@ function buildPinCardHtml(pin) {
     return `
         <div class="pin-card post-it ${pin.type} ${pin.completed ? 'done' : ''}" data-id="${pin.id}" tabindex="0">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span class="bubble-tag">${escapeHtml(pin.tag)}</span>
+                <span class="bubble-tag">${pin.category !== 'adventure' ? CATEGORY_LABELS[pin.category] + ' · ' : ''}${escapeHtml(pin.tag)}</span>
                 ${albumBtn}
             </div>
             ${galleryHtml}
@@ -281,6 +304,7 @@ window.addEventListener('hashchange', renderPins);
 const reviewList = document.getElementById('review-list');
 
 function renderReviews() {
+    renderCategoryPages();
     if (!reviewList) return;
     const completed = pinBoardEntries.filter(p => p.completed || p.review || (p.images && p.images.length));
 
@@ -323,6 +347,72 @@ function renderReviews() {
         `;
     }).join('');
 }
+
+// --- BubFilms & BubFood pages ---
+const filmList = document.getElementById('film-list');
+const foodList = document.getElementById('food-list');
+
+function scoreLine(pin) {
+    const nik = pin.nikScore !== null ? `${pin.nikScore.toFixed(1)}` : '—';
+    const lei = pin.leiScore !== null ? `${pin.leiScore.toFixed(1)}` : '—';
+    const avg = pin.rating !== null ? `${pin.rating.toFixed(1)}/10` : 'Unrated';
+    return `<p class="category-scores"><strong>BubScore ${avg}</strong> · Nik ${nik} · Lei ${lei}${pin.liked ? ' · ♥' : ''}</p>`;
+}
+
+function buildFilmCardHtml(pin) {
+    const poster = safeUrl(pin.posterUrl) || (pin.images && pin.images[0] ? safeUrl(pin.images[0]) : '');
+    const letterboxd = safeUrl(pin.letterboxdUrl);
+    return `
+        <article class="category-card film-card" data-id="${escapeHtml(pin.id)}" tabindex="0">
+            ${poster ? `<img class="film-poster" src="${poster}" alt="${escapeHtml(pin.title)} poster">` : '<div class="film-poster film-poster-empty">🎬</div>'}
+            <div class="category-card-body">
+                <h4>${escapeHtml(pin.title)}${pin.filmYear ? ` <span class="film-year">(${escapeHtml(pin.filmYear)})</span>` : ''}</h4>
+                <p class="category-sub">${escapeHtml(pin.details)}</p>
+                ${scoreLine(pin)}
+                ${pin.review ? `<p class="category-review">${escapeHtml(pin.review)}</p>` : ''}
+                ${letterboxd ? `<a class="ghost-btn category-link" href="${letterboxd}" target="_blank" rel="noopener noreferrer">Letterboxd</a>` : ''}
+            </div>
+        </article>
+    `;
+}
+
+function buildFoodCardHtml(pin) {
+    const photo = pin.images && pin.images[0] ? safeUrl(pin.images[0]) : '';
+    const map = safeUrl(pin.mapUrl);
+    const sub = [pin.foodPlace, pin.foodDish, pin.foodPrice].filter(Boolean).map(escapeHtml).join(' · ');
+    return `
+        <article class="category-card food-card" data-id="${escapeHtml(pin.id)}" tabindex="0">
+            ${photo ? `<img class="food-photo" src="${photo}" alt="${escapeHtml(pin.title)}">` : ''}
+            <div class="category-card-body">
+                <h4>${escapeHtml(pin.title)}</h4>
+                <p class="category-sub">${sub || escapeHtml(pin.details)}</p>
+                ${scoreLine(pin)}
+                ${pin.review ? `<p class="category-review">${escapeHtml(pin.review)}</p>` : ''}
+                ${map ? `<a class="ghost-btn category-link" href="${map}" target="_blank" rel="noopener noreferrer">Map</a>` : ''}
+            </div>
+        </article>
+    `;
+}
+
+function renderCategoryPages() {
+    const films = pinBoardEntries.filter(p => p.category === 'film');
+    const foods = pinBoardEntries.filter(p => p.category === 'food');
+    if (filmList) {
+        filmList.innerHTML = films.map(buildFilmCardHtml).join('') || '<p class="empty-state">No BubFilms yet. Add your first movie date!</p>';
+    }
+    if (foodList) {
+        foodList.innerHTML = foods.map(buildFoodCardHtml).join('') || '<p class="empty-state">No BubFood yet. Add your first food date!</p>';
+    }
+}
+
+[filmList, foodList].forEach(list => {
+    if (!list) return;
+    list.addEventListener('click', (e) => {
+        if (e.target.closest('a')) return;
+        const card = e.target.closest('.category-card');
+        if (card) openPinModal(card.dataset.id);
+    });
+});
 
 if (reviewList) {
     reviewList.addEventListener('click', (e) => {
@@ -392,6 +482,22 @@ const pinAggregateScore = document.getElementById('pin-aggregate-score');
 const pinLikeButton = document.getElementById('pin-like-btn');
 const pinForm = document.getElementById('pin-form');
 const pinRemoveButton = document.getElementById('pin-remove-btn');
+const pinCategoryInput = document.getElementById('pin-category-input');
+const pinFilmFields = document.getElementById('pin-film-fields');
+const pinFoodFields = document.getElementById('pin-food-fields');
+const pinFilmYear = document.getElementById('pin-film-year');
+const pinFilmLetterboxd = document.getElementById('pin-film-letterboxd');
+const pinFilmPoster = document.getElementById('pin-film-poster');
+const pinFoodPlace = document.getElementById('pin-food-place');
+const pinFoodDish = document.getElementById('pin-food-dish');
+const pinFoodPrice = document.getElementById('pin-food-price');
+const pinFoodMap = document.getElementById('pin-food-map');
+
+function toggleCategoryFields() {
+    pinFilmFields.classList.toggle('hidden', pinCategoryInput.value !== 'film');
+    pinFoodFields.classList.toggle('hidden', pinCategoryInput.value !== 'food');
+}
+pinCategoryInput.addEventListener('change', toggleCategoryFields);
 
 pinPhotoTriggerBtn.addEventListener('click', () => pinPhotoInput.click());
 
@@ -443,6 +549,15 @@ function openPinModal(pinId) {
     pinTitleInput.value = pin.title;
     pinDetailsInput.value = pin.details;
     pinTypeInput.value = pin.type;
+    pinCategoryInput.value = pin.category || 'adventure';
+    pinFilmYear.value = pin.filmYear || '';
+    pinFilmLetterboxd.value = pin.letterboxdUrl || '';
+    pinFilmPoster.value = pin.posterUrl || '';
+    pinFoodPlace.value = pin.foodPlace || '';
+    pinFoodDish.value = pin.foodDish || '';
+    pinFoodPrice.value = pin.foodPrice || '';
+    pinFoodMap.value = pin.mapUrl || '';
+    toggleCategoryFields();
     pinAlbumUrlInput.value = pin.albumUrl || DEFAULT_ALBUM_URL;
     pinReviewInput.value = pin.review || '';
     
@@ -493,6 +608,14 @@ pinForm.addEventListener('submit', (e) => {
     pin.tag = pin.type === 'memory' ? 'Latest Memory' : (pin.type === 'event' ? 'Upcoming Event' : 'Next Wishlist Item');
     pin.review = pinReviewInput.value.trim();
     pin.images = currentPinImages;
+    pin.category = pinCategoryInput.value;
+    pin.filmYear = pinFilmYear.value.trim();
+    pin.letterboxdUrl = pinFilmLetterboxd.value.trim();
+    pin.posterUrl = pinFilmPoster.value.trim();
+    pin.foodPlace = pinFoodPlace.value.trim();
+    pin.foodDish = pinFoodDish.value.trim();
+    pin.foodPrice = pinFoodPrice.value;
+    pin.mapUrl = pinFoodMap.value.trim();
 
     if (pinNikRatingModified) {
         pin.nikScore = Number(pinNikRatingInput.value);
@@ -539,8 +662,22 @@ const newPinTitle = document.getElementById('new-pin-title');
 const newPinDetails = document.getElementById('new-pin-details');
 const newPinType = document.getElementById('new-pin-type');
 const newPinAlbum = document.getElementById('new-pin-album');
+const newPinCategory = document.getElementById('new-pin-category');
+const addPinModalTitle = document.getElementById('add-pin-modal-title');
 
-document.getElementById('add-pin-btn').addEventListener('click', () => addPinModal.classList.remove('hidden'));
+function openAddPinModal(category = 'adventure') {
+    newPinCategory.value = category;
+    addPinModalTitle.textContent = `Create a new ${CATEGORY_LABELS[category]}`;
+    addPinModal.classList.remove('hidden');
+}
+newPinCategory.addEventListener('change', () => {
+    addPinModalTitle.textContent = `Create a new ${CATEGORY_LABELS[newPinCategory.value]}`;
+});
+
+document.getElementById('add-pin-btn').addEventListener('click', () => openAddPinModal('adventure'));
+document.querySelectorAll('.add-category-btn').forEach(btn => {
+    btn.addEventListener('click', () => openAddPinModal(btn.dataset.category));
+});
 document.getElementById('add-pin-modal-close').addEventListener('click', () => addPinModal.classList.add('hidden'));
 document.getElementById('add-pin-cancel').addEventListener('click', () => addPinModal.classList.add('hidden'));
 document.querySelector('[data-close-add="true"]').addEventListener('click', () => addPinModal.classList.add('hidden'));
@@ -551,10 +688,13 @@ addPinForm.addEventListener('submit', (e) => {
     const details = newPinDetails.value.trim();
     const type = newPinType.value;
     const albumUrl = (newPinAlbum?.value || '').trim() || DEFAULT_ALBUM_URL;
+    const category = newPinCategory.value;
     if (!title || !details) return;
 
-    pinBoardEntries.unshift({
-        id: `pin-${Date.now()}`,
+    const newId = `pin-${Date.now()}`;
+    pinBoardEntries.unshift(normalizePin({
+        id: newId,
+        category,
         title,
         details,
         albumUrl,
@@ -567,13 +707,15 @@ addPinForm.addEventListener('submit', (e) => {
         leiScore: null,
         rating: null,
         liked: false
-    });
+    }));
 
     savePins();
     renderPins();
     renderReviews();
     addPinForm.reset();
     addPinModal.classList.add('hidden');
+    // Films and food have extra details (poster, place...), so open the full editor straight away
+    if (category !== 'adventure') openPinModal(newId);
 });
 
 // --- Scheduled Activity Scoring Logic ---
@@ -703,14 +845,10 @@ navButtons.forEach(btn => {
         navButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        if (btn.textContent.includes('List')) {
-            listPage.classList.remove('hidden');
-            reviewsPage.classList.add('hidden');
-        } else {
-            reviewsPage.classList.remove('hidden');
-            listPage.classList.add('hidden');
-            renderReviews();
-        }
+        document.querySelectorAll('.main-content > .page-content').forEach(page => {
+            page.classList.toggle('hidden', page.id !== btn.dataset.page);
+        });
+        if (btn.dataset.page !== 'list-page') renderReviews();
     });
 });
 
@@ -929,4 +1067,5 @@ applyAutoTheme();
 
 renderPins();
 renderActivities();
+renderCategoryPages();
 renderReviews();

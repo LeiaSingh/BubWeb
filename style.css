@@ -909,3 +909,142 @@ body[data-view="upcoming"] {
 body[data-view="wishlist"] {
     background-color: #eef3f8; /* Airy sky-tinted paper */
 }
+
+/* --- BubFilms & BubFood --- */
+.page-nav {
+    flex-wrap: wrap;
+}
+
+.category-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.category-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.category-card:hover,
+.category-card:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+}
+
+.film-poster {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+    background: #1f2937;
+}
+
+.film-poster-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+}
+
+.food-photo {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+
+.category-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+}
+
+/* Handwritten titles, matching the scrapbook pins */
+.category-card-body h4 {
+    font-family: "Caveat", cursive;
+    font-size: 26px;
+    line-height: 1.05;
+    margin: 0;
+}
+
+.category-card-body h4 .film-year {
+    font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.film-year,
+.category-sub {
+    color: #718096;
+    font-weight: 400;
+    font-size: 13px;
+}
+
+.category-scores {
+    font-size: 12.5px;
+    color: #333333;
+}
+
+.category-review {
+    font-size: 13px;
+    color: #444444;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.category-link {
+    align-self: flex-start;
+    text-decoration: none;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.category-fields {
+    display: grid;
+    gap: 10px;
+}
+
+body.theme-night .category-card {
+    background: #28354c;
+    border-color: #3a4b68;
+    color: #f4efe6;
+}
+
+body.theme-night .category-scores,
+body.theme-night .category-review,
+body.theme-night .film-year,
+body.theme-night .category-sub {
+    color: #d6cfc2;
+}
+
+@media (max-width: 560px) {
+    .category-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    .page-nav {
+        gap: 2px;
+    }
+    .nav-btn {
+        padding: 8px 8px;
+        font-size: 13px;
+    }
+}
+
+.add-category-btn {
+    white-space: nowrap;
+}
