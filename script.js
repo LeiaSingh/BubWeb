@@ -611,7 +611,20 @@ function directionsUrl(pin) {
 }
 
 // OpenStreetMap search (free, no key) to drop a spot on our map
+// Both use OpenStreetMap data, which misses many Joburg restaurants, so "Pick on map" is the fallback
 async function geocodePlace(text) {
+    try {
+        const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(text)}&limit=1&lat=-26.15&lon=28.05&bbox=27.3,-26.9,28.9,-25.3`);
+        const [hit] = (await res.json()).features || [];
+        if (hit) {
+            const p = hit.properties || {};
+            return {
+                lat: hit.geometry.coordinates[1],
+                lng: hit.geometry.coordinates[0],
+                name: [p.name, p.street, p.district || p.city].filter(Boolean).join(', ')
+            };
+        }
+    } catch (err) { /* try the other search */ }
     const query = /johannesburg|joburg|gauteng|pretoria|durban|cape town|south africa/i.test(text) ? text : `${text}, Gauteng`;
     const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=za&q=${encodeURIComponent(query)}`, {
         headers: { 'Accept-Language': 'en' }
@@ -1130,18 +1143,103 @@ pinFoodLocateBtn.addEventListener('click', async () => {
     try {
         const hit = await geocodePlace(place);
         if (!hit) {
-            renderLocateStatus('Couldn\'t find it. Try adding the suburb, e.g. "Miyako Sushi, Rosebank"');
+            openFoodPicker('Not in the map\'s directory. Jump to the suburb below, then tap where it is.');
             return;
         }
         currentFoodLocation = { lat: hit.lat, lng: hit.lng };
-        renderLocateStatus(`Found: ${hit.name}`);
-        pinFoodUnlocateBtn.classList.remove('hidden');
+        openFoodPicker(`Found: ${hit.name}. Drag the pin if it's not quite right.`);
     } catch (err) {
         renderLocateStatus('Map search failed. Check your connection and try again.');
     }
 });
+// --- Pick on map: tap to place a spot that search can't find ---
+const pinFoodPickBtn = document.getElementById('pin-food-pick-btn');
+const pinFoodPicker = document.getElementById('pin-food-picker');
+const pinFoodPickerMapEl = document.getElementById('pin-food-picker-map');
+const pinFoodArea = document.getElementById('pin-food-area');
+const pinFoodAreaBtn = document.getElementById('pin-food-area-btn');
+let pickerMap = null;
+let pickerMarker = null;
+
+function setPickerLocation(latlng, label) {
+    currentFoodLocation = { lat: Number(latlng.lat.toFixed(6)), lng: Number(latlng.lng.toFixed(6)) };
+    if (!pickerMarker) {
+        pickerMarker = L.marker(latlng, {
+            draggable: true,
+            icon: L.divIcon({
+                className: '',
+                html: '<div class="food-marker been"><span>📍</span></div>',
+                iconSize: [36, 36],
+                iconAnchor: [18, 36]
+            })
+        }).addTo(pickerMap);
+        pickerMarker.on('dragend', () => setPickerLocation(pickerMarker.getLatLng(), 'Moved. Tap Save Changes'));
+    } else {
+        pickerMarker.setLatLng(latlng);
+    }
+    renderLocateStatus(label || 'Placed on the map. Tap Save Changes');
+}
+
+function openFoodPicker(message) {
+    if (typeof L === 'undefined') return;
+    pinFoodPicker.classList.remove('hidden');
+    if (!pickerMap) {
+        pickerMap = L.map(pinFoodPickerMapEl, { scrollWheelZoom: false }).setView(JOBURG, 12);
+        L.tileLayer(OSM_TILES, {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(pickerMap);
+        pickerMap.on('click', (e) => setPickerLocation(e.latlng));
+    }
+    if (pickerMarker) {
+        pickerMarker.remove();
+        pickerMarker = null;
+    }
+    setTimeout(() => {
+        pickerMap.invalidateSize();
+        if (currentFoodLocation) {
+            pickerMap.setView([currentFoodLocation.lat, currentFoodLocation.lng], 16);
+            setPickerLocation(L.latLng(currentFoodLocation.lat, currentFoodLocation.lng), message);
+        } else {
+            pickerMap.setView(JOBURG, 12);
+            if (message) renderLocateStatus(message);
+        }
+    }, 0);
+}
+
+function closeFoodPicker() {
+    pinFoodPicker.classList.add('hidden');
+}
+
+pinFoodPickBtn.addEventListener('click', () => openFoodPicker());
+
+async function jumpToArea() {
+    const area = pinFoodArea.value.trim();
+    if (!area || !pickerMap) return;
+    pinFoodAreaBtn.textContent = '…';
+    const hit = await geocodePlace(area).catch(() => null);
+    pinFoodAreaBtn.textContent = 'Go';
+    if (hit) {
+        pickerMap.setView([hit.lat, hit.lng], 16);
+        renderLocateStatus(`Showing ${hit.name}. Now tap the exact spot.`);
+    } else {
+        renderLocateStatus('Couldn\'t find that area. Try just the suburb, e.g. "Parkhurst".');
+    }
+}
+pinFoodAreaBtn.addEventListener('click', jumpToArea);
+pinFoodArea.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        jumpToArea();
+    }
+});
+
 pinFoodUnlocateBtn.addEventListener('click', () => {
     currentFoodLocation = null;
+    if (pickerMarker) {
+        pickerMarker.remove();
+        pickerMarker = null;
+    }
     renderLocateStatus();
 });
 
@@ -1217,6 +1315,7 @@ function openPinModal(pinId) {
     pinFilmShowTime.value = pin.showTime || '';
     pinFilmPosterStatus.textContent = '';
     currentFoodLocation = pin.lat !== null && pin.lng !== null ? { lat: pin.lat, lng: pin.lng } : null;
+    closeFoodPicker();
     renderLocateStatus();
     toggleCategoryFields();
     pinAlbumUrlInput.value = pin.albumUrl || DEFAULT_ALBUM_URL;
@@ -1425,9 +1524,11 @@ addPinForm.addEventListener('submit', (e) => {
             renderPins();
             renderReviews();
             openPinModal(newId);
-            renderLocateStatus(hit
-                ? `Pinned on the map: ${hit.name}. Wrong spot? Add the suburb to Place and tap Find on map.`
-                : 'Couldn\'t place it on the map. Add the suburb to Place (e.g. "Rosebank") and tap Find on map.');
+            if (hit) {
+                openFoodPicker(`Pinned: ${hit.name}. Drag the pin if it's not quite right.`);
+            } else {
+                openFoodPicker('Couldn\'t find it in the map\'s directory. Jump to the suburb below, then tap where it is.');
+            }
         });
     }
 });

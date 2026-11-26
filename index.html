@@ -213,8 +213,17 @@
                             <span>Pin on the BubFood map</span>
                             <div class="photo-upload-container">
                                 <button type="button" id="pin-food-locate-btn" class="ghost-btn">Find on map</button>
+                                <button type="button" id="pin-food-pick-btn" class="ghost-btn">Pick on map</button>
                                 <button type="button" id="pin-food-unlocate-btn" class="ghost-btn delete-btn hidden">Clear</button>
-                                <span id="pin-food-locate-status" class="photo-status">Not on the map yet</span>
+                            </div>
+                            <span id="pin-food-locate-status" class="photo-status">Not on the map yet</span>
+                            <div id="pin-food-picker" class="food-picker hidden">
+                                <div class="food-picker-search">
+                                    <input type="text" id="pin-food-area" placeholder="Jump to a suburb or street, e.g. Rosebank">
+                                    <button type="button" id="pin-food-area-btn" class="ghost-btn">Go</button>
+                                </div>
+                                <div id="pin-food-picker-map" class="food-picker-map" aria-label="Tap where the place is"></div>
+                                <p class="food-map-note">Tap where it is. Drag the pin to fine-tune, then Save Changes.</p>
                             </div>
                         </div>
                     </div>
