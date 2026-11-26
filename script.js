@@ -118,7 +118,10 @@ function normalizePin(pin) {
         foodDish: pin.foodDish || '',
         foodPrice: pin.foodPrice || '',
         mapUrl: pin.mapUrl || '',
-        letterboxdKey: pin.letterboxdKey || ''
+        letterboxdKey: pin.letterboxdKey || '',
+        ticketImage: pin.ticketImage || '',
+        lat: Number.isFinite(Number(pin.lat)) && pin.lat !== null && pin.lat !== '' ? Number(pin.lat) : null,
+        lng: Number.isFinite(Number(pin.lng)) && pin.lng !== null && pin.lng !== '' ? Number(pin.lng) : null
     };
 }
 
@@ -353,6 +356,14 @@ function renderReviews() {
 // --- BubFilms & BubFood pages ---
 const filmList = document.getElementById('film-list');
 const foodList = document.getElementById('food-list');
+const foodWantList = document.getElementById('food-want-list');
+const foodMapEl = document.getElementById('food-map');
+const foodMapNote = document.getElementById('food-map-note');
+const JOBURG = [-26.15, 28.05];
+let foodMap = null;
+let foodMapLayer = null;
+let foodTileLayer = null;
+let foodMapFilter = 'all';
 
 function scoreLine(pin) {
     const nik = pin.nikScore !== null ? `${pin.nikScore.toFixed(1)}` : '—';
@@ -372,10 +383,19 @@ function buildFilmCardHtml(pin) {
                 <p class="category-sub">${escapeHtml(pin.details)}</p>
                 ${scoreLine(pin)}
                 ${pin.review ? `<p class="category-review">${escapeHtml(pin.review)}</p>` : ''}
+                ${safeUrl(pin.ticketImage) ? `
+                    <div class="ticket-stub" aria-label="Ticket stub">
+                        <span class="ticket-label">ADMIT TWO</span>
+                        <img src="${safeUrl(pin.ticketImage)}" alt="Our ticket for ${escapeHtml(pin.title)}">
+                    </div>` : ''}
                 ${letterboxd ? `<a class="ghost-btn category-link" href="${letterboxd}" target="_blank" rel="noopener noreferrer">Letterboxd</a>` : ''}
             </div>
         </article>
     `;
+}
+
+function isFoodVisited(pin) {
+    return pin.type === 'memory' || pin.completed;
 }
 
 function buildFoodCardHtml(pin) {
@@ -390,7 +410,8 @@ function buildFoodCardHtml(pin) {
                 <p class="category-sub">${sub || escapeHtml(pin.details)}</p>
                 ${scoreLine(pin)}
                 ${pin.review ? `<p class="category-review">${escapeHtml(pin.review)}</p>` : ''}
-                ${map ? `<a class="ghost-btn category-link" href="${map}" target="_blank" rel="noopener noreferrer">Map</a>` : ''}
+                ${pin.lat === null ? '<p class="category-sub">Not on the map yet</p>' : ''}
+                ${map ? `<a class="ghost-btn category-link" href="${map}" target="_blank" rel="noopener noreferrer">Directions</a>` : ''}
             </div>
         </article>
     `;
@@ -399,13 +420,97 @@ function buildFoodCardHtml(pin) {
 function renderCategoryPages() {
     const films = pinBoardEntries.filter(p => p.category === 'film');
     const foods = pinBoardEntries.filter(p => p.category === 'food');
+    const been = foods.filter(isFoodVisited);
+    const want = foods.filter(p => !isFoodVisited(p));
     if (filmList) {
         filmList.innerHTML = films.map(buildFilmCardHtml).join('') || '<p class="empty-state">No BubFilms yet. Add your first movie date!</p>';
     }
     if (foodList) {
-        foodList.innerHTML = foods.map(buildFoodCardHtml).join('') || '<p class="empty-state">No BubFood yet. Add your first food date!</p>';
+        foodList.innerHTML = been.map(buildFoodCardHtml).join('') || '<p class="empty-state">No food dates yet. Add your first one!</p>';
+    }
+    if (foodWantList) {
+        foodWantList.innerHTML = want.map(buildFoodCardHtml).join('') || '<p class="empty-state">Nothing on the list. Add a spot you want to try (pick "Wishlist Item").</p>';
+    }
+    renderFoodMap();
+}
+
+// --- BubFood map (Leaflet + OpenStreetMap, no API key needed) ---
+
+function foodTileUrl() {
+    const style = document.body.classList.contains('theme-night') ? 'dark_all' : 'rastertiles/voyager';
+    return `https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`;
+}
+
+function renderFoodMap() {
+    if (!foodMapEl || typeof L === 'undefined') return;
+    const page = document.getElementById('food-page');
+    if (!page || page.classList.contains('hidden')) return; // Leaflet needs a visible box
+
+    if (!foodMap) {
+        foodMap = L.map(foodMapEl, { scrollWheelZoom: false }).setView(JOBURG, 11);
+        foodMapLayer = L.layerGroup().addTo(foodMap);
+    }
+    const url = foodTileUrl();
+    if (!foodTileLayer || foodTileLayer._url !== url) {
+        if (foodTileLayer) foodTileLayer.remove();
+        foodTileLayer = L.tileLayer(url, {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        }).addTo(foodMap);
+    }
+    foodMap.invalidateSize();
+    foodMapLayer.clearLayers();
+
+    const spots = pinBoardEntries.filter(p => p.category === 'food' && p.lat !== null && p.lng !== null)
+        .filter(p => foodMapFilter === 'all' || (foodMapFilter === 'been') === isFoodVisited(p));
+
+    spots.forEach(pin => {
+        const visited = isFoodVisited(pin);
+        const label = visited && pin.rating !== null ? pin.rating.toFixed(1) : (visited ? '✓' : '♡');
+        const marker = L.marker([pin.lat, pin.lng], {
+            title: pin.title,
+            icon: L.divIcon({
+                className: '',
+                html: `<div class="food-marker ${visited ? 'been' : 'want'}"><span>${escapeHtml(label)}</span></div>`,
+                iconSize: [36, 36],
+                iconAnchor: [18, 36],
+                popupAnchor: [0, -34]
+            })
+        });
+        const popup = document.createElement('div');
+        popup.className = 'food-popup';
+        const title = document.createElement('strong');
+        title.textContent = pin.title;
+        const sub = document.createElement('div');
+        sub.textContent = [pin.foodPlace, visited ? (pin.rating !== null ? `BubScore ${pin.rating.toFixed(1)}/10` : 'Been there') : 'Want to try'].filter(Boolean).join(' · ');
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'ghost-btn';
+        open.textContent = 'Open';
+        open.addEventListener('click', () => openPinModal(pin.id));
+        popup.append(title, sub, open);
+        marker.bindPopup(popup);
+        marker.addTo(foodMapLayer);
+    });
+
+    const unplaced = pinBoardEntries.filter(p => p.category === 'food' && p.lat === null).length;
+    if (foodMapNote) {
+        foodMapNote.textContent = unplaced
+            ? `${unplaced} spot${unplaced === 1 ? '' : 's'} not on the map yet. Open one and tap "Find on map".`
+            : '';
+    }
+    if (spots.length) {
+        foodMap.fitBounds(L.latLngBounds(spots.map(p => [p.lat, p.lng])).pad(0.25), { maxZoom: 15, animate: false });
     }
 }
+
+document.querySelectorAll('.map-filter').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.map-filter').forEach(b => b.classList.toggle('active', b === btn));
+        foodMapFilter = btn.dataset.filter;
+        renderFoodMap();
+    });
+});
 
 [filmList, foodList].forEach(list => {
     if (!list) return;
@@ -495,6 +600,89 @@ const pinFoodDish = document.getElementById('pin-food-dish');
 const pinFoodPrice = document.getElementById('pin-food-price');
 const pinFoodMap = document.getElementById('pin-food-map');
 
+const pinTicketInput = document.getElementById('pin-ticket-input');
+const pinTicketTrigger = document.getElementById('pin-ticket-trigger-btn');
+const pinTicketRemove = document.getElementById('pin-ticket-remove-btn');
+const pinTicketPreview = document.getElementById('pin-ticket-preview');
+const pinFoodLocateBtn = document.getElementById('pin-food-locate-btn');
+const pinFoodUnlocateBtn = document.getElementById('pin-food-unlocate-btn');
+const pinFoodLocateStatus = document.getElementById('pin-food-locate-status');
+let currentTicketImage = '';
+let currentFoodLocation = null;
+
+function renderTicketPreview() {
+    const src = safeUrl(currentTicketImage);
+    pinTicketPreview.innerHTML = src ? `<img src="${src}" alt="Ticket stub">` : '';
+    pinTicketPreview.classList.toggle('hidden', !src);
+    pinTicketRemove.classList.toggle('hidden', !src);
+    pinTicketTrigger.textContent = src ? 'Replace ticket photo' : 'Add ticket photo';
+}
+
+pinTicketTrigger.addEventListener('click', () => pinTicketInput.click());
+pinTicketInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    compressImage(file, (base64) => {
+        currentTicketImage = base64;
+        renderTicketPreview();
+    });
+    pinTicketInput.value = '';
+});
+pinTicketRemove.addEventListener('click', () => {
+    currentTicketImage = '';
+    renderTicketPreview();
+});
+
+function renderLocateStatus(text) {
+    pinFoodLocateStatus.textContent = text || (currentFoodLocation
+        ? `On the map (${currentFoodLocation.lat.toFixed(4)}, ${currentFoodLocation.lng.toFixed(4)})`
+        : 'Not on the map yet');
+    pinFoodUnlocateBtn.classList.toggle('hidden', !currentFoodLocation);
+}
+
+// Google Maps links that include coordinates (long links, not maps.app.goo.gl short links)
+function coordsFromMapLink(link) {
+    const m = String(link || '').match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+        || String(link || '').match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
+        || String(link || '').match(/[?&](?:q|query|ll)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+    return m ? { lat: Number(m[1]), lng: Number(m[2]) } : null;
+}
+
+pinFoodLocateBtn.addEventListener('click', async () => {
+    const fromLink = coordsFromMapLink(pinFoodMap.value);
+    if (fromLink) {
+        currentFoodLocation = fromLink;
+        renderLocateStatus();
+        return;
+    }
+    const place = pinFoodPlace.value.trim() || pinTitleInput.value.trim();
+    if (!place) {
+        renderLocateStatus('Type the place name first');
+        return;
+    }
+    renderLocateStatus('Searching…');
+    try {
+        const query = /johannesburg|joburg|gauteng|pretoria|durban|cape town|south africa/i.test(place) ? place : `${place}, Gauteng`;
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=za&q=${encodeURIComponent(query)}`, {
+            headers: { 'Accept-Language': 'en' }
+        });
+        const [hit] = await res.json();
+        if (!hit) {
+            renderLocateStatus('Couldn\'t find it. Try adding the suburb, e.g. "Miyako Sushi, Rosebank"');
+            return;
+        }
+        currentFoodLocation = { lat: Number(hit.lat), lng: Number(hit.lon) };
+        renderLocateStatus(`Found: ${hit.display_name.split(',').slice(0, 3).join(',')}`);
+        pinFoodUnlocateBtn.classList.remove('hidden');
+    } catch (err) {
+        renderLocateStatus('Map search failed. Check your connection and try again.');
+    }
+});
+pinFoodUnlocateBtn.addEventListener('click', () => {
+    currentFoodLocation = null;
+    renderLocateStatus();
+});
+
 function toggleCategoryFields() {
     pinFilmFields.classList.toggle('hidden', pinCategoryInput.value !== 'film');
     pinFoodFields.classList.toggle('hidden', pinCategoryInput.value !== 'food');
@@ -559,6 +747,10 @@ function openPinModal(pinId) {
     pinFoodDish.value = pin.foodDish || '';
     pinFoodPrice.value = pin.foodPrice || '';
     pinFoodMap.value = pin.mapUrl || '';
+    currentTicketImage = pin.ticketImage || '';
+    renderTicketPreview();
+    currentFoodLocation = pin.lat !== null && pin.lng !== null ? { lat: pin.lat, lng: pin.lng } : null;
+    renderLocateStatus();
     toggleCategoryFields();
     pinAlbumUrlInput.value = pin.albumUrl || DEFAULT_ALBUM_URL;
     pinReviewInput.value = pin.review || '';
@@ -618,6 +810,9 @@ pinForm.addEventListener('submit', (e) => {
     pin.foodDish = pinFoodDish.value.trim();
     pin.foodPrice = pinFoodPrice.value;
     pin.mapUrl = pinFoodMap.value.trim();
+    pin.ticketImage = currentTicketImage;
+    pin.lat = currentFoodLocation ? currentFoodLocation.lat : null;
+    pin.lng = currentFoodLocation ? currentFoodLocation.lng : null;
 
     if (pinNikRatingModified) {
         pin.nikScore = Number(pinNikRatingInput.value);
@@ -856,6 +1051,7 @@ navButtons.forEach(btn => {
             page.classList.toggle('hidden', page.id !== btn.dataset.page);
         });
         if (btn.dataset.page !== 'list-page') renderReviews();
+        if (btn.dataset.page === 'food-page') setTimeout(renderFoodMap, 0);
     });
 });
 

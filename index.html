@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 </head>
 <body>
     <div class="container">
@@ -124,7 +125,19 @@
                     </div>
                     <button type="button" class="save-btn add-category-btn" data-category="food">+1 BubFood</button>
                 </div>
+                <div class="food-map-wrap">
+                    <div class="food-map-filters" role="group" aria-label="Map filter">
+                        <button type="button" class="map-filter active" data-filter="all">All spots</button>
+                        <button type="button" class="map-filter" data-filter="been">Been there</button>
+                        <button type="button" class="map-filter" data-filter="want">Want to try</button>
+                    </div>
+                    <div id="food-map" class="food-map" aria-label="Map of BubFood spots"></div>
+                    <p id="food-map-note" class="food-map-note"></p>
+                </div>
+                <h3 class="food-section-title">Been there</h3>
                 <div id="food-list" class="category-grid"></div>
+                <h3 class="food-section-title">Want to try</h3>
+                <div id="food-want-list" class="category-grid"></div>
             </div>
         </main>
 
@@ -171,6 +184,15 @@
                             <span>Poster image link</span>
                             <input type="url" id="pin-film-poster" placeholder="https://...">
                         </label>
+                        <div class="field">
+                            <span>Ticket stub</span>
+                            <div class="photo-upload-container">
+                                <input type="file" id="pin-ticket-input" accept="image/*" class="file-input-hidden">
+                                <button type="button" id="pin-ticket-trigger-btn" class="ghost-btn photo-trigger-btn">Add ticket photo</button>
+                                <button type="button" id="pin-ticket-remove-btn" class="ghost-btn delete-btn hidden">Remove</button>
+                            </div>
+                            <div id="pin-ticket-preview" class="ticket-preview hidden"></div>
+                        </div>
                     </div>
 
                     <div id="pin-food-fields" class="category-fields hidden">
@@ -198,6 +220,14 @@
                                 <span>Map link</span>
                                 <input type="url" id="pin-food-map" placeholder="https://maps.app.goo.gl/...">
                             </label>
+                        </div>
+                        <div class="field">
+                            <span>Pin on the BubFood map</span>
+                            <div class="photo-upload-container">
+                                <button type="button" id="pin-food-locate-btn" class="ghost-btn">Find on map</button>
+                                <button type="button" id="pin-food-unlocate-btn" class="ghost-btn delete-btn hidden">Clear</button>
+                                <span id="pin-food-locate-status" class="photo-status">Not on the map yet</span>
+                            </div>
                         </div>
                     </div>
 
@@ -330,6 +360,7 @@
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
         <script src="script.js"></script>
     </div>
 </body>
