@@ -612,35 +612,35 @@ function directionsUrl(pin) {
 
 // OpenStreetMap search (free, no key) to drop a spot on our map
 // Both use OpenStreetMap data, which misses many Joburg restaurants, so "Pick on map" is the fallback
-// --- Foursquare place search (free monthly credit, no card) ---
-// Much better restaurant coverage than OpenStreetMap. Leave empty to fall back to OpenStreetMap + Pick on map.
-const FOURSQUARE_KEY = '';
-const JOBURG_LL = '-26.15,28.05';
+// --- Place search through our Cloudflare relay (keeps the Foursquare key secret) ---
+// /search finds restaurants (Foursquare); /resolve reads Google Maps & share.google links
+const PLACES_RELAY = 'https://bubweb-places.nikeelramharakh.workers.dev';
 
 async function searchFoursquare(text) {
-    if (!FOURSQUARE_KEY) return [];
-    const url = `https://places-api.foursquare.com/places/search?query=${encodeURIComponent(text)}&ll=${JOBURG_LL}&radius=60000&limit=6`;
-    const res = await fetch(url, {
-        headers: {
-            Authorization: `Bearer ${FOURSQUARE_KEY}`,
-            'X-Places-Api-Version': '2025-06-17',
-            Accept: 'application/json'
-        }
-    });
-    if (!res.ok) throw new Error(`Foursquare ${res.status}`);
-    return ((await res.json()).results || []).map(place => {
-        const lat = place.latitude ?? place.geocodes?.main?.latitude;
-        const lng = place.longitude ?? place.geocodes?.main?.longitude;
-        const loc = place.location || {};
-        return {
-            name: place.name,
-            lat: Number(lat),
-            lng: Number(lng),
-            area: loc.locality || loc.neighborhood?.[0] || loc.region || '',
-            address: loc.address || loc.formatted_address || '',
-            fsqId: place.fsq_place_id || place.fsq_id || ''
-        };
-    }).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+    const res = await fetch(`${PLACES_RELAY}/search?q=${encodeURIComponent(text)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Search ${res.status}`);
+    return (data.results || []).map(p => ({ ...p, area: p.area === 'EGoli' ? 'Johannesburg' : p.area }));
+}
+
+// Is this result really the place we typed? (stops "Afters" from landing on "Aftershock")
+function placeNameMatches(query, name) {
+    const words = t => String(t || '').toLowerCase()
+        .replace(/&/g, ' and ').replace(/[^a-z0-9 ]/g, ' ')
+        .split(/\s+/).filter(w => w && !['and', 'the', 'restaurant', 'cafe', 'bar', 'jhb', 'johannesburg'].includes(w));
+    const wanted = words(query.split(',')[0]);
+    const have = words(name);
+    if (!wanted.length || !have.length) return false;
+    const hits = wanted.filter(w => have.includes(w)).length;
+    return hits / wanted.length >= 0.6 || (hits >= 1 && wanted.length === 1);
+}
+
+// Google Maps / share.google links: location if the link has one, otherwise the place's name
+async function resolveMapLink(link) {
+    const res = await fetch(`${PLACES_RELAY}/resolve?url=${encodeURIComponent(link)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Link ${res.status}`);
+    return data;
 }
 
 async function geocodePlace(text) {
@@ -1190,7 +1190,7 @@ function renderPlaceChoices(places, chosenIndex) {
         pinFoodResults.innerHTML = '';
         return;
     }
-    pinFoodResults.innerHTML = `<span class="place-results-label">Not the right one? Tap the correct place:</span>` +
+    pinFoodResults.innerHTML = `<span class="place-results-label">${chosenIndex >= 0 ? 'Not the right one? Tap the correct place:' : 'Closest matches (tap one if it\'s right):'}</span>` +
         places.map((place, i) => `
             <button type="button" class="place-choice ${i === chosenIndex ? 'chosen' : ''}" data-index="${i}">
                 <strong>${escapeHtml(place.name)}</strong>
@@ -1209,35 +1209,69 @@ function renderPlaceChoices(places, chosenIndex) {
 // Returns the place it pinned (or null), trying Foursquare first
 async function findFoodOnMap(place) {
     renderPlaceChoices([]);
-    if (FOURSQUARE_KEY) {
-        try {
-            const places = await searchFoursquare(place);
-            if (places.length) {
-                choosePlace(places[0]);
-                renderPlaceChoices(places, 0);
-                return places[0];
-            }
-        } catch (err) {
-            console.warn('Foursquare search failed, falling back to OpenStreetMap:', err);
+    let places = [];
+    try {
+        places = await searchFoursquare(place);
+        const matchIndex = places.findIndex(p => placeNameMatches(place, p.name));
+        if (matchIndex >= 0) {
+            choosePlace(places[matchIndex]);
+            renderPlaceChoices(places, matchIndex);
+            return places[matchIndex];
         }
+    } catch (err) {
+        console.warn('Place search failed, falling back to OpenStreetMap:', err);
     }
-    const hit = await geocodePlace(place);
-    if (hit) {
+    const hit = await geocodePlace(place).catch(() => null);
+    if (hit && placeNameMatches(place, hit.name)) {
         currentFoodLocation = { lat: hit.lat, lng: hit.lng };
         openFoodPicker(`Found: ${hit.name}. Drag the pin if it's not quite right.`);
         return hit;
     }
-    openFoodPicker('Couldn\'t find it automatically. Jump to the suburb below, then tap where it is.');
+    // Nothing that's clearly this place: offer the near-misses and the map
+    renderPlaceChoices(places.slice(0, 4), -1);
+    openFoodPicker('Couldn\'t find this exact place. Tap one of the suggestions if it\'s right, or jump to the suburb and tap where it is.');
     return null;
 }
 
-pinFoodLocateBtn.addEventListener('click', async () => {
-    const fromLink = coordsFromMapLink(pinFoodMap.value);
-    if (fromLink) {
-        currentFoodLocation = fromLink;
-        renderLocateStatus();
-        return;
+// Pasted Google link: use its exact location, or its place name to search
+async function locateFromLink(link) {
+    const direct = coordsFromMapLink(link);
+    if (direct) {
+        currentFoodLocation = direct;
+        closeFoodPicker();
+        renderLocateStatus('Pinned from your Google link. Tap Save Changes');
+        return true;
     }
+    if (!/goo\.gl|share\.google|google\./i.test(link)) return false;
+    renderLocateStatus('Reading your Google link…');
+    try {
+        const info = await resolveMapLink(link);
+        if (info.name && (!pinFoodPlace.value.trim() || pinFoodPlace.value.trim() === pinTitleInput.value.trim())) {
+            pinFoodPlace.value = info.name;
+        }
+        if (info.lat !== null && info.lng !== null) {
+            currentFoodLocation = { lat: info.lat, lng: info.lng };
+            closeFoodPicker();
+            renderPlaceChoices([]);
+            renderLocateStatus(`Pinned${info.name ? ` ${info.name}` : ''} from your Google link. Tap Save Changes`);
+            return true;
+        }
+        if (info.name) {
+            await findFoodOnMap(info.name);
+            return !!currentFoodLocation;
+        }
+    } catch (err) {
+        console.warn('Could not read link:', err);
+    }
+    return false;
+}
+
+pinFoodMap.addEventListener('change', () => {
+    if (pinFoodMap.value.trim()) locateFromLink(pinFoodMap.value.trim());
+});
+
+pinFoodLocateBtn.addEventListener('click', async () => {
+    if (pinFoodMap.value.trim() && await locateFromLink(pinFoodMap.value.trim())) return;
     const place = pinFoodPlace.value.trim() || pinTitleInput.value.trim();
     if (!place) {
         renderLocateStatus('Type the place name first');
@@ -1538,17 +1572,24 @@ const newPinDetails = document.getElementById('new-pin-details');
 const newPinType = document.getElementById('new-pin-type');
 const newPinAlbum = document.getElementById('new-pin-album');
 const newPinCategory = document.getElementById('new-pin-category');
+const newPinLink = document.getElementById('new-pin-link');
+const newPinLinkField = document.getElementById('new-pin-link-field');
+function toggleNewPinLink() {
+    if (newPinLinkField) newPinLinkField.classList.toggle('hidden', newPinCategory.value !== 'food');
+}
 const addPinModalTitle = document.getElementById('add-pin-modal-title');
 
 function openAddPinModal(category = 'adventure') {
     newPinCategory.value = category;
     relabelStatusSelect(newPinType, category);
+    toggleNewPinLink();
     if (category === 'food') newPinType.value = 'memory'; // most food pins are places we've been
     addPinModalTitle.textContent = `Create a new ${CATEGORY_LABELS[category]}`;
     addPinModal.classList.remove('hidden');
 }
 newPinCategory.addEventListener('change', () => {
     relabelStatusSelect(newPinType, newPinCategory.value);
+    toggleNewPinLink();
     addPinModalTitle.textContent = `Create a new ${CATEGORY_LABELS[newPinCategory.value]}`;
 });
 
@@ -1567,6 +1608,7 @@ addPinForm.addEventListener('submit', (e) => {
     const type = newPinType.value;
     const albumUrl = (newPinAlbum?.value || '').trim() || DEFAULT_ALBUM_URL;
     const category = newPinCategory.value;
+    const newLink = (newPinLink?.value || '').trim();
     if (!title || !details) return;
 
     const newId = `pin-${Date.now()}`;
@@ -1609,13 +1651,14 @@ addPinForm.addEventListener('submit', (e) => {
     } else if (category === 'food') {
         const pin = pinBoardEntries.find(p => p.id === newId);
         pin.foodPlace = pin.foodPlace || title;
+        if (newLink) pin.mapUrl = newLink;
         savePins();
         renderPins();
         renderReviews();
         openPinModal(newId);
         renderLocateStatus('Finding it on the map…');
         // Pin it straight away; picking a different match or saving updates it
-        findFoodOnMap(pin.foodPlace).then(found => {
+        (newLink ? locateFromLink(newLink).then(ok => ok || findFoodOnMap(pin.foodPlace)) : findFoodOnMap(pin.foodPlace)).then(found => {
             if (!found || !currentFoodLocation) return;
             pin.lat = currentFoodLocation.lat;
             pin.lng = currentFoodLocation.lng;
